@@ -44,177 +44,134 @@ def get_metrics():
             
             conn = pyodbc.connect(conn_str, timeout=5)
             cursor = conn.cursor()
+            alerts = []
 
             # ---------- 1. DRIVES ----------
             drive_query = """
-                SELECT DISTINCT
-                    vs.volume_mount_point AS DriveLetter,
-                    CAST(vs.available_bytes AS FLOAT) / CAST(vs.total_bytes AS FLOAT) * 100 AS FreeSpacePercent,
-                    CAST(vs.available_bytes / 1048576.0 / 1024.0 AS DECIMAL(10,2)) AS FreeSpaceGB,
-                    CAST(vs.total_bytes / 1048576.0 / 1024.0 AS DECIMAL(10,2)) AS TotalSpaceGB
-                FROM sys.master_files AS f
-                CROSS APPLY sys.dm_os_volume_stats(f.database_id, f.file_id) AS vs;
+                SELECT DISTINCT vs.volume_mount_point AS DriveLetter, CAST(vs.available_bytes AS FLOAT) / CAST(vs.total_bytes AS FLOAT) * 100 AS FreeSpacePercent, CAST(vs.available_bytes / 1048576.0 / 1024.0 AS DECIMAL(10,2)) AS FreeSpaceGB, CAST(vs.total_bytes / 1048576.0 / 1024.0 AS DECIMAL(10,2)) AS TotalSpaceGB
+                FROM sys.master_files AS f CROSS APPLY sys.dm_os_volume_stats(f.database_id, f.file_id) AS vs;
             """
             cursor.execute(drive_query)
-            all_drives = []
-            for row in cursor.fetchall():
-                all_drives.append({
-                    "letter": row.DriveLetter,
-                    "free_percent": round(row.FreeSpacePercent, 2),
-                    "free_gb": float(row.FreeSpaceGB),
-                    "total_gb": float(row.TotalSpaceGB)
-                })
+            all_drives = [{"letter": r.DriveLetter, "free_percent": round(r.FreeSpacePercent, 2), "free_gb": float(r.FreeSpaceGB), "total_gb": float(r.TotalSpaceGB)} for r in cursor.fetchall()]
 
-            # ---------- 2. DATABASES, BACKUP, AND LOG WAIT REASON ----------
+            # ---------- 2. DATABASES, BACKUP, AND AUTO-SHRINK STATUS ----------
             db_query = """
-                WITH BackupCTE AS (
-                    SELECT database_name, MAX(backup_finish_date) as LastBackup
-                    FROM msdb.dbo.backupset
-                    WHERE type = 'D'
-                    GROUP BY database_name
-                )
-                SELECT 
-                    d.name AS DatabaseName, 
-                    d.state_desc AS Status, 
-                    ISNULL(SUM(mf.size * 8.0 / 1024), 0) AS Size_in_MB,
-                    d.log_reuse_wait_desc AS LogWait,
-                    CASE 
-                        WHEN d.name = 'tempdb' THEN 'N/A'
-                        WHEN b.LastBackup >= DATEADD(hh, -24, GETDATE()) THEN 'OK'
-                        ELSE 'MISSING'
-                    END AS BackupStatus
-                FROM sys.databases d
-                LEFT JOIN sys.master_files mf ON d.database_id = mf.database_id
-                LEFT JOIN BackupCTE b ON d.name = b.database_name
-                WHERE d.database_id > 4 
-                GROUP BY d.name, d.state_desc, d.log_reuse_wait_desc, b.LastBackup;
+                WITH BackupCTE AS (SELECT database_name, MAX(backup_finish_date) as LastBackup FROM msdb.dbo.backupset WHERE type = 'D' GROUP BY database_name)
+                SELECT d.name AS DatabaseName, d.state_desc AS Status, ISNULL(SUM(mf.size * 8.0 / 1024), 0) AS Size_in_MB, d.log_reuse_wait_desc AS LogWait, d.is_auto_shrink_on AS IsAutoShrink, CASE WHEN d.name = 'tempdb' THEN 'N/A' WHEN b.LastBackup >= DATEADD(hh, -24, GETDATE()) THEN 'OK' ELSE 'MISSING' END AS BackupStatus
+                FROM sys.databases d LEFT JOIN sys.master_files mf ON d.database_id = mf.database_id LEFT JOIN BackupCTE b ON d.name = b.database_name
+                WHERE d.database_id > 4 GROUP BY d.name, d.state_desc, d.log_reuse_wait_desc, d.is_auto_shrink_on, b.LastBackup;
             """
             cursor.execute(db_query)
             all_databases = []
             for row in cursor.fetchall():
                 all_databases.append({
-                    "name": row.DatabaseName,
-                    "status": row.Status,
-                    "size_mb": round(row.Size_in_MB, 2),
-                    "log_wait": row.LogWait,
-                    "backup_status": row.BackupStatus,
-                    "log_used_pct": 0 # Default value, updated below
+                    "name": row.DatabaseName, "status": row.Status, "size_mb": round(row.Size_in_MB, 2), "log_wait": row.LogWait, "backup_status": row.BackupStatus, "auto_shrink": True if row.IsAutoShrink == 1 else False, "log_used_pct": 0 
                 })
-
-            alerts = []
 
             # ---------- 3. AVAILABILITY GROUP SYNC HEALTH ----------
             ag_query = """
-                SELECT 
-                    DB_NAME(drs.database_id) AS DatabaseName,
-                    ar.replica_server_name AS SecondaryServer,
-                    drs.synchronization_state_desc AS SyncState,
-                    CAST(ISNULL(drs.log_send_queue_size, 0) / 1024.0 AS DECIMAL(18,2)) AS LogSendQueueMB,
-                    CAST(ISNULL(drs.redo_queue_size, 0) / 1024.0 AS DECIMAL(18,2)) AS RedoQueueMB
-                FROM sys.dm_hadr_database_replica_states drs WITH (nolock)
-                JOIN sys.availability_replicas ar WITH (nolock) ON drs.replica_id = ar.replica_id
-                WHERE drs.is_local = 0;
+                SELECT DB_NAME(drs.database_id) AS DatabaseName, ar.replica_server_name AS SecondaryServer, drs.synchronization_state_desc AS SyncState, CAST(ISNULL(drs.log_send_queue_size, 0) / 1024.0 AS DECIMAL(18,2)) AS LogSendQueueMB, CAST(ISNULL(drs.redo_queue_size, 0) / 1024.0 AS DECIMAL(18,2)) AS RedoQueueMB
+                FROM sys.dm_hadr_database_replica_states drs WITH (nolock) JOIN sys.availability_replicas ar WITH (nolock) ON drs.replica_id = ar.replica_id WHERE drs.is_local = 0;
             """
             cursor.execute(ag_query)
             ag_sync = []
             for row in cursor.fetchall():
-                ag_sync.append({
-                    "database": row.DatabaseName,
-                    "secondary": row.SecondaryServer,
-                    "state": row.SyncState,
-                    "log_queue_mb": float(row.LogSendQueueMB),
-                    "redo_queue_mb": float(row.RedoQueueMB)
-                })
-                if float(row.LogSendQueueMB) > 500:
-                    alerts.append(f"🚨 CRITICAL: AG Replica '{row.SecondaryServer}' has a Log Send Queue of {row.LogSendQueueMB}MB for '{row.DatabaseName}'!")
+                ag_sync.append({"database": row.DatabaseName, "secondary": row.SecondaryServer, "state": row.SyncState, "log_queue_mb": float(row.LogSendQueueMB), "redo_queue_mb": float(row.RedoQueueMB)})
+                if float(row.LogSendQueueMB) > 500: alerts.append(f"🚨 CRITICAL: AG Replica '{row.SecondaryServer}' has a Log Send Queue of {row.LogSendQueueMB}MB for '{row.DatabaseName}'!")
 
-            # ---------- 4. NEW LOG FILE USAGE (No longer an alert!) ----------
-            log_query = """
-                SELECT RTRIM(instance_name) AS DatabaseName, cntr_value AS LogUsedPercent
-                FROM sys.dm_os_performance_counters 
-                WHERE counter_name = 'Percent Log Used' 
-                  AND instance_name NOT IN ('master', 'tempdb', 'model', 'msdb', '_Total');
-            """
+            # ---------- 4. LOG FILE USAGE PERCENTAGES ----------
+            log_query = "SELECT RTRIM(instance_name) AS DatabaseName, cntr_value AS LogUsedPercent FROM sys.dm_os_performance_counters WHERE counter_name = 'Percent Log Used' AND instance_name NOT IN ('master', 'tempdb', 'model', 'msdb', '_Total');"
             cursor.execute(log_query)
             log_usage_dict = {row.DatabaseName: row.LogUsedPercent for row in cursor.fetchall()}
-            
-            # Attach log percentage to the correct database
             for db in all_databases:
-                if db['name'] in log_usage_dict:
-                    db['log_used_pct'] = log_usage_dict[db['name']]
+                if db['name'] in log_usage_dict: db['log_used_pct'] = log_usage_dict[db['name']]
 
-            # ---------- 5. BLOCKING & LONG QUERY CHECK WITH SQL TEXT ----------
-            blocking_query = """
+            # ---------- 5. MEMORY HEALTH (PAGE LIFE EXPECTANCY) ----------
+            ple_query = "SELECT cntr_value FROM sys.dm_os_performance_counters WHERE counter_name = 'Page life expectancy' AND object_name LIKE '%Buffer Manager%';"
+            cursor.execute(ple_query)
+            ple_row = cursor.fetchone()
+            if ple_row and ple_row.cntr_value < 300: alerts.append(f"🚨 CRITICAL: Memory Health (Page Life Expectancy) is dangerously low at {ple_row.cntr_value} seconds!")
+
+            # ---------- 6. FAILED SQL AGENT JOBS (UPDATED: ONLY IF LATEST RUN FAILED) ----------
+            jobs_query = """
+                WITH LatestRuns AS (
+                    SELECT 
+                        j.name AS JobName,
+                        h.run_status,
+                        msdb.dbo.agent_datetime(h.run_date, h.run_time) AS RunDateTime,
+                        h.message AS ErrorMessage,
+                        ROW_NUMBER() OVER(PARTITION BY j.job_id ORDER BY h.run_date DESC, h.run_time DESC) as rn
+                    FROM msdb.dbo.sysjobhistory h WITH (nolock)
+                    JOIN msdb.dbo.sysjobs j WITH (nolock) ON h.job_id = j.job_id
+                    WHERE h.step_id = 0 
+                      AND msdb.dbo.agent_datetime(h.run_date, h.run_time) >= DATEADD(hour, -24, GETDATE())
+                )
                 SELECT 
-                    r.session_id, 
-                    r.blocking_session_id, 
-                    DB_NAME(r.database_id) AS DatabaseName, 
-                    r.total_elapsed_time / 1000 AS SecondsRunning,
-                    t.text AS QueryText
-                FROM sys.dm_exec_requests r
-                CROSS APPLY sys.dm_exec_sql_text(r.sql_handle) t
-                WHERE r.session_id > 50 
-                  AND r.status NOT IN ('background', 'sleeping')
-                  AND (r.blocking_session_id <> 0 OR r.total_elapsed_time > 60000);
+                    JobName, 
+                    CONVERT(VARCHAR, RunDateTime, 120) AS FailDate, 
+                    ErrorMessage
+                FROM LatestRuns
+                WHERE rn = 1 AND run_status = 0
+                ORDER BY RunDateTime DESC;
+            """
+            cursor.execute(jobs_query)
+            failed_jobs = [{"job_name": r.JobName, "fail_date": r.FailDate, "error_message": r.ErrorMessage} for r in cursor.fetchall()]
+
+            # ---------- 7. BLOCKING & LONG QUERY CHECK ----------
+            blocking_query = """
+                SELECT r.session_id, r.blocking_session_id, DB_NAME(r.database_id) AS DatabaseName, r.total_elapsed_time / 1000 AS SecondsRunning, t.text AS QueryText
+                FROM sys.dm_exec_requests r CROSS APPLY sys.dm_exec_sql_text(r.sql_handle) t
+                WHERE r.session_id > 50 AND r.status NOT IN ('background', 'sleeping') AND (r.blocking_session_id <> 0 OR r.total_elapsed_time > 60000);
             """
             cursor.execute(blocking_query)
             long_queries = []
             for row in cursor.fetchall():
-                if row.blocking_session_id != 0:
-                    alerts.append(f"🚨 CRITICAL: Session {row.session_id} on '{row.DatabaseName}' is BLOCKED by Session {row.blocking_session_id}!")
-                
+                if row.blocking_session_id != 0: alerts.append(f"🚨 CRITICAL: Session {row.session_id} on '{row.DatabaseName}' is BLOCKED by Session {row.blocking_session_id}!")
                 safe_query_text = str(row.QueryText) if row.QueryText else "N/A"
                 if len(safe_query_text) > 300: safe_query_text = safe_query_text[:300] + " ... [TRUNCATED]"
+                long_queries.append({"session_id": row.session_id, "database": row.DatabaseName, "seconds": row.SecondsRunning, "query_text": safe_query_text})
 
-                long_queries.append({
-                    "session_id": row.session_id,
-                    "database": row.DatabaseName,
-                    "seconds": row.SecondsRunning,
-                    "query_text": safe_query_text
-                })
-
-            # ---------- 6. THE "SILENT KILLER" (SLEEPING OPEN TRANSACTIONS > 5 MINS) ----------
+            # ---------- 8. THE "SILENT KILLER" (SLEEPING OPEN TRANSACTIONS > 5 MINS) ----------
             sleep_query = """
-                SELECT 
-                    st.session_id,
-                    DB_NAME(s.database_id) AS DatabaseName,
-                    DATEDIFF(SECOND, tat.transaction_begin_time, GETDATE()) AS SecondsRunning,
-                    t.text AS QueryText
-                FROM sys.dm_tran_active_transactions tat WITH (nolock)
-                INNER JOIN sys.dm_tran_session_transactions st WITH (nolock) ON tat.transaction_id = st.transaction_id
-                INNER JOIN sys.dm_exec_sessions s WITH (nolock) ON s.session_id = st.session_id
-                INNER JOIN sys.dm_exec_connections c WITH (nolock) ON c.session_id = st.session_id
-                CROSS APPLY sys.dm_exec_sql_text(c.most_recent_sql_handle) t
-                WHERE st.is_user_transaction = 1 
-                  AND s.status = 'sleeping'
-                  AND DATEDIFF(MINUTE, tat.transaction_begin_time, GETDATE()) > 5;
+                SELECT st.session_id, DB_NAME(s.database_id) AS DatabaseName, DATEDIFF(SECOND, tat.transaction_begin_time, GETDATE()) AS SecondsRunning, t.text AS QueryText
+                FROM sys.dm_tran_active_transactions tat WITH (nolock) INNER JOIN sys.dm_tran_session_transactions st WITH (nolock) ON tat.transaction_id = st.transaction_id
+                INNER JOIN sys.dm_exec_sessions s WITH (nolock) ON s.session_id = st.session_id INNER JOIN sys.dm_exec_connections c WITH (nolock) ON c.session_id = st.session_id CROSS APPLY sys.dm_exec_sql_text(c.most_recent_sql_handle) t
+                WHERE st.is_user_transaction = 1 AND s.status = 'sleeping' AND DATEDIFF(MINUTE, tat.transaction_begin_time, GETDATE()) > 5;
             """
             cursor.execute(sleep_query)
             for row in cursor.fetchall():
                 if not any(q['session_id'] == row.session_id for q in long_queries):
                     alerts.append(f"🚨 CRITICAL: Session {row.session_id} on '{row.DatabaseName}' is SLEEPING with an open transaction for {row.SecondsRunning}s!")
-                    
                     safe_query_text = str(row.QueryText) if row.QueryText else "N/A"
                     if len(safe_query_text) > 300: safe_query_text = safe_query_text[:300] + " ... [TRUNCATED]"
+                    long_queries.append({"session_id": row.session_id, "database": f"{row.DatabaseName} [SLEEPING]", "seconds": row.SecondsRunning, "query_text": safe_query_text})
 
-                    long_queries.append({
-                        "session_id": row.session_id,
-                        "database": f"{row.DatabaseName} [SLEEPING]",
-                        "seconds": row.SecondsRunning,
-                        "query_text": safe_query_text
-                    })
+            # ---------- 9. SYSADMIN SECURITY AUDIT ----------
+            sysadmin_query = """
+                SELECT sp.name AS LoginName, sp.type_desc AS LoginType, sp.is_disabled AS IsDisabled
+                FROM sys.server_principals sp JOIN sys.server_role_members srm ON sp.principal_id = srm.member_principal_id
+                JOIN sys.server_principals spr ON srm.role_principal_id = spr.principal_id
+                WHERE spr.name = 'sysadmin' AND sp.name NOT LIKE '##%';
+            """
+            cursor.execute(sysadmin_query)
+            sysadmins = [{"login_name": r.LoginName, "login_type": r.LoginType, "is_disabled": r.IsDisabled} for r in cursor.fetchall()]
 
-            if len(alerts) == 0:
-                alerts.append("No active server alerts")
+            # ---------- 10. RECENT RESTORES (LAST 7 DAYS) ----------
+            restore_query = """
+                SELECT TOP 50 destination_database_name AS DatabaseName, CONVERT(VARCHAR, restore_date, 120) AS RestoreDate, user_name AS RestoredBy
+                FROM msdb.dbo.restorehistory WHERE restore_date >= DATEADD(day, -7, GETDATE()) ORDER BY restore_date DESC;
+            """
+            cursor.execute(restore_query)
+            recent_restores = [{"database": r.DatabaseName, "restore_date": r.RestoreDate, "restored_by": r.RestoredBy} for r in cursor.fetchall()]
+
+            if len(alerts) == 0: alerts.append("✅ System is entirely healthy. No active alerts.")
 
             conn.close()
 
             return jsonify({
-                "server_level_alerts": alerts,
-                "drives": all_drives,
-                "databases": all_databases,
-                "long_queries": long_queries,
-                "ag_sync": ag_sync
+                "server_level_alerts": alerts, "drives": all_drives, "databases": all_databases, 
+                "long_queries": long_queries, "ag_sync": ag_sync, "failed_jobs": failed_jobs,
+                "sysadmins": sysadmins, "recent_restores": recent_restores
             })
 
         except Exception as e:
@@ -222,6 +179,44 @@ def get_metrics():
 
     return jsonify({"error": "Unsupported database type"})
 
+# ---------- POST-RESTORE SECURITY VALIDATOR (DB LEVEL) ----------
+@app.route('/api/security', methods=['GET'])
+def get_security():
+    server_name = request.args.get('server')
+    db_name = request.args.get('db')
+    with open('config.json') as config_file: live_configs = json.load(config_file)
+    if server_name not in live_configs: return jsonify({"error": "Server not found"}), 404
+    config = live_configs[server_name]
+    
+    if config['type'] == 'sqlserver':
+        try:
+            server_address = config['host']
+            if config.get('port') and str(config['port']).strip() != '': server_address = f"{server_address},{config['port']}"
+            conn_str = (f"DRIVER={{ODBC Driver 17 for SQL Server}};SERVER={server_address};DATABASE={db_name};UID={config['user']};PWD={{{config['password']}}};Encrypt=yes;TrustServerCertificate=yes;")
+            conn = pyodbc.connect(conn_str, timeout=10)
+            cursor = conn.cursor()
+            
+            orphaned_query = """
+                SELECT dp.name AS UserName, dp.type_desc AS UserType
+                FROM sys.database_principals dp LEFT JOIN sys.server_principals sp ON dp.sid = sp.sid
+                WHERE sp.sid IS NULL AND dp.type IN ('S', 'U', 'G') AND dp.principal_id > 4 AND dp.name NOT IN ('dbo', 'guest', 'sys', 'INFORMATION_SCHEMA');
+            """
+            cursor.execute(orphaned_query)
+            orphaned_users = [{"user": r.UserName, "type": r.UserType} for r in cursor.fetchall()]
+
+            owner_query = """
+                SELECT dp.name AS UserName, dp.type_desc AS UserType
+                FROM sys.database_role_members drm JOIN sys.database_principals dp ON drm.member_principal_id = dp.principal_id
+                JOIN sys.database_principals rp ON drm.role_principal_id = rp.principal_id
+                WHERE rp.name = 'db_owner' AND dp.name <> 'dbo';
+            """
+            cursor.execute(owner_query)
+            db_owners = [{"user": r.UserName, "type": r.UserType} for r in cursor.fetchall()]
+            
+            conn.close()
+            return jsonify({"orphaned": orphaned_users, "owners": db_owners})
+        except Exception as e: return jsonify({"error": str(e)}), 500
+    return jsonify({"error": "Unsupported database type"})
 
 # ---------- PRODUCTION-SAFE INDEX CHECKING ----------
 @app.route('/api/indexes', methods=['GET'])
@@ -241,10 +236,8 @@ def get_indexes():
             cursor = conn.cursor()
             index_query = """
                 SELECT OBJECT_NAME(ips.OBJECT_ID) AS TableName, i.name AS IndexName, ROUND(ips.avg_fragmentation_in_percent, 2) AS Fragmentation, ips.page_count AS PageCount
-                FROM sys.dm_db_index_physical_stats(DB_ID(), NULL, NULL, NULL, 'LIMITED') ips
-                INNER JOIN sys.indexes i ON ips.object_id = i.object_id AND ips.index_id = i.index_id
-                WHERE ips.avg_fragmentation_in_percent > 10.0 AND ips.page_count > 1000 AND i.name IS NOT NULL
-                ORDER BY ips.avg_fragmentation_in_percent DESC;
+                FROM sys.dm_db_index_physical_stats(DB_ID(), NULL, NULL, NULL, 'LIMITED') ips INNER JOIN sys.indexes i ON ips.object_id = i.object_id AND ips.index_id = i.index_id
+                WHERE ips.avg_fragmentation_in_percent > 10.0 AND ips.page_count > 1000 AND i.name IS NOT NULL ORDER BY ips.avg_fragmentation_in_percent DESC;
             """
             cursor.execute(index_query)
             indexes = [{"table": row.TableName, "index": row.IndexName, "fragmentation": row.Fragmentation, "pages": row.PageCount} for row in cursor.fetchall()]
