@@ -14,7 +14,7 @@ Step to use
 7. open batch (cmd)
    "cd path/to/your/folder"
    "python app.py"
-8.  Open the Browser: Open Chrome, Edge, or whatever browser you prefer. (http://127.0.0.1:5000 or http://0.0.0.0:5000).   
+8.  Open the Browser: Open Chrome, Edge, or whatever browser you prefer. (http://127.0.0.1:5000).   
 
 P/S 
 Enter the Local Server URL: * If you are running the browser on the same machine where Python is running, type: http://localhost:5000 in the address bar.
