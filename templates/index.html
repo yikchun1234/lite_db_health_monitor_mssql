@@ -6,92 +6,119 @@
     <title>Database Health Monitor</title>
     <style>
         body { font-family: Arial, sans-serif; padding: 20px; background: #f4f4f9; }
-        .container { max-width: 800px; margin: auto; background: white; padding: 20px; border-radius: 8px; box-shadow: 0 0 10px rgba(0,0,0,0.1); }
+        .container { max-width: 900px; margin: auto; background: white; padding: 20px; border-radius: 8px; box-shadow: 0 0 10px rgba(0,0,0,0.1); }
         .controls { margin-bottom: 20px; display: flex; gap: 10px; }
         select, button { padding: 10px; font-size: 16px; border-radius: 5px; border: 1px solid #ccc; }
         button { background: #007bff; color: white; cursor: pointer; border: none; }
         button:hover { background: #0056b3; }
-        .card { background: #e9ecef; padding: 15px; margin-bottom: 15px; border-radius: 5px; }
-        .card h3 { margin-top: 0; color: #333; }
+        table { width: 100%; border-collapse: collapse; margin-top: 15px; }
+        th, td { padding: 12px; text-align: left; border-bottom: 1px solid #ddd; }
+        th { background-color: #007bff; color: white; }
+        .status-online { color: green; font-weight: bold; }
+        .alerts { background: #ffdddd; padding: 10px; border-left: 4px solid red; margin-bottom: 15px; }
     </style>
 </head>
 <body>
 
 <div class="container">
-    <h2>Database Monitor</h2>
+    <h2>Server Monitor</h2>
     
     <div class="controls">
-        <select id="dbSelect">
-            <option value="">-- Select a Database --</option>
+        <select id="serverSelect">
+            <option value="">-- Select a Server --</option>
         </select>
-        <button onclick="fetchMetrics()">Refresh Details</button>
+        <button onclick="fetchMetrics()">Refresh Server</button>
     </div>
 
     <div id="results" style="display: none;">
-        <div class="card">
-            <h3>System Status</h3>
-            <p id="status"></p>
+        <div id="alertBox" class="alerts" style="display: none;">
+            <strong>Server Alerts:</strong>
+            <ul id="serverAlerts"></ul>
         </div>
-        <div class="card">
-            <h3>Datafile Size</h3>
-            <p id="datafile"></p>
-        </div>
-        <div class="card">
-            <h3>Index Details</h3>
-            <p id="indexes"></p>
-        </div>
-        <div class="card">
-            <h3>Active Alerts</h3>
-            <ul id="alerts"></ul>
-        </div>
+
+        <h3>Databases on Server</h3>
+        <table>
+            <thead>
+                <tr>
+                    <th>Database Name</th>
+                    <th>Status</th>
+                    <th>Size (MB)</th>
+                </tr>
+            </thead>
+            <tbody id="dbTableBody">
+                </tbody>
+        </table>
     </div>
 </div>
 
 <script>
-    // 1. Load the dropdown list on page load
+    // 1. Load the servers from config.json on page load
     document.addEventListener("DOMContentLoaded", () => {
         fetch('/api/databases')
             .then(response => response.json())
-            .then(databases => {
-                const select = document.getElementById('dbSelect');
-                databases.forEach(db => {
+            .then(servers => {
+                const select = document.getElementById('serverSelect');
+                servers.forEach(server => {
                     const option = document.createElement('option');
-                    option.value = db;
-                    option.textContent = db;
+                    option.value = server;
+                    option.textContent = server;
                     select.appendChild(option);
                 });
             });
     });
 
-    // 2. Fetch metrics when user clicks "Refresh"
+    // 2. Fetch all databases when user clicks "Refresh"
     function fetchMetrics() {
-        const selectedDB = document.getElementById('dbSelect').value;
-        if (!selectedDB) return alert("Please select a database first.");
+        const selectedServer = document.getElementById('serverSelect').value;
+        if (!selectedServer) return alert("Please select a server first.");
 
         document.getElementById('results').style.display = 'block';
-        document.getElementById('status').textContent = "Loading...";
+        const tbody = document.getElementById('dbTableBody');
+        tbody.innerHTML = "<tr><td colspan='3'>Loading data...</td></tr>";
 
-        fetch(`/api/metrics?db=${selectedDB}`)
+        // Call the backend
+        fetch(`/api/metrics?server=${selectedServer}`)
             .then(response => response.json())
             .then(data => {
-                document.getElementById('status').textContent = data.status;
-                document.getElementById('datafile').textContent = data.datafile_size;
-                document.getElementById('indexes').textContent = data.index_details;
-                
-                const alertsList = document.getElementById('alerts');
-                alertsList.innerHTML = ""; // clear previous
-                if (data.alerts.length === 0) {
-                    alertsList.innerHTML = "<li>No active alerts</li>";
-                } else {
-                    data.alerts.forEach(alertMsg => {
-                        const li = document.createElement('li');
-                        li.textContent = alertMsg;
-                        alertsList.appendChild(li);
-                    });
+                if (data.error) {
+                    tbody.innerHTML = `<tr><td colspan='3' style="color:red;">Error: ${data.error}</td></tr>`;
+                    return;
                 }
+
+                // Handle Alerts
+                const alertBox = document.getElementById('alertBox');
+                const alertList = document.getElementById('serverAlerts');
+                alertList.innerHTML = "";
+                
+                if (data.server_level_alerts && data.server_level_alerts.length > 0 && data.server_level_alerts[0] !== "No active server alerts") {
+                    alertBox.style.display = 'block';
+                    data.server_level_alerts.forEach(alert => {
+                        let li = document.createElement('li');
+                        li.textContent = alert;
+                        alertList.appendChild(li);
+                    });
+                } else {
+                    alertBox.style.display = 'none';
+                }
+
+                // Handle Database Table
+                tbody.innerHTML = "";
+                data.databases.forEach(db => {
+                    const tr = document.createElement('tr');
+                    
+                    // Add a CSS class if status is ONLINE for styling
+                    const statusClass = (db.status.toUpperCase() === 'ONLINE') ? 'status-online' : '';
+
+                    tr.innerHTML = `
+                        <td><strong>${db.name}</strong></td>
+                        <td class="${statusClass}">${db.status}</td>
+                        <td>${db.size_mb.toLocaleString()} MB</td>
+                    `;
+                    tbody.appendChild(tr);
+                });
             })
             .catch(err => {
-                document.getElementById('status').textContent = "Error fetching data.";
+                tbody.innerHTML = `<tr><td colspan='3' style="color:red;">Failed to connect to backend.</td></tr>`;
                 console.error(err);
             });
     }
