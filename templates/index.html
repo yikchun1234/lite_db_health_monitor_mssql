@@ -1,0 +1,101 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Database Health Monitor</title>
+    <style>
+        body { font-family: Arial, sans-serif; padding: 20px; background: #f4f4f9; }
+        .container { max-width: 800px; margin: auto; background: white; padding: 20px; border-radius: 8px; box-shadow: 0 0 10px rgba(0,0,0,0.1); }
+        .controls { margin-bottom: 20px; display: flex; gap: 10px; }
+        select, button { padding: 10px; font-size: 16px; border-radius: 5px; border: 1px solid #ccc; }
+        button { background: #007bff; color: white; cursor: pointer; border: none; }
+        button:hover { background: #0056b3; }
+        .card { background: #e9ecef; padding: 15px; margin-bottom: 15px; border-radius: 5px; }
+        .card h3 { margin-top: 0; color: #333; }
+    </style>
+</head>
+<body>
+
+<div class="container">
+    <h2>Database Monitor</h2>
+    
+    <div class="controls">
+        <select id="dbSelect">
+            <option value="">-- Select a Database --</option>
+        </select>
+        <button onclick="fetchMetrics()">Refresh Details</button>
+    </div>
+
+    <div id="results" style="display: none;">
+        <div class="card">
+            <h3>System Status</h3>
+            <p id="status"></p>
+        </div>
+        <div class="card">
+            <h3>Datafile Size</h3>
+            <p id="datafile"></p>
+        </div>
+        <div class="card">
+            <h3>Index Details</h3>
+            <p id="indexes"></p>
+        </div>
+        <div class="card">
+            <h3>Active Alerts</h3>
+            <ul id="alerts"></ul>
+        </div>
+    </div>
+</div>
+
+<script>
+    // 1. Load the dropdown list on page load
+    document.addEventListener("DOMContentLoaded", () => {
+        fetch('/api/databases')
+            .then(response => response.json())
+            .then(databases => {
+                const select = document.getElementById('dbSelect');
+                databases.forEach(db => {
+                    const option = document.createElement('option');
+                    option.value = db;
+                    option.textContent = db;
+                    select.appendChild(option);
+                });
+            });
+    });
+
+    // 2. Fetch metrics when user clicks "Refresh"
+    function fetchMetrics() {
+        const selectedDB = document.getElementById('dbSelect').value;
+        if (!selectedDB) return alert("Please select a database first.");
+
+        document.getElementById('results').style.display = 'block';
+        document.getElementById('status').textContent = "Loading...";
+
+        fetch(`/api/metrics?db=${selectedDB}`)
+            .then(response => response.json())
+            .then(data => {
+                document.getElementById('status').textContent = data.status;
+                document.getElementById('datafile').textContent = data.datafile_size;
+                document.getElementById('indexes').textContent = data.index_details;
+                
+                const alertsList = document.getElementById('alerts');
+                alertsList.innerHTML = ""; // clear previous
+                if (data.alerts.length === 0) {
+                    alertsList.innerHTML = "<li>No active alerts</li>";
+                } else {
+                    data.alerts.forEach(alertMsg => {
+                        const li = document.createElement('li');
+                        li.textContent = alertMsg;
+                        alertsList.appendChild(li);
+                    });
+                }
+            })
+            .catch(err => {
+                document.getElementById('status').textContent = "Error fetching data.";
+                console.error(err);
+            });
+    }
+</script>
+
+</body>
+</html>
