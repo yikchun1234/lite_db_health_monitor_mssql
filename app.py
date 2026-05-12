@@ -28,30 +28,21 @@ def get_metrics():
     
     if config['type'] == 'sqlserver':
         try:
-	    # Safely format the server address
-            server_address = config['host'].replace(':', ',').strip(',')
-            
-            # Only append the port if it actually has a value!
-            if config.get('port') and str(config['port']).strip() != '' and ',' not in server_address:
+            # REVERTED: Clean and simple server address!
+            server_address = config['host']
+            if config.get('port') and str(config['port']).strip() != '':
                 server_address = f"{server_address},{config['port']}"
-                
-            # --- THE FIX IS HERE ---
+
             conn_str = (
                 f"DRIVER={{ODBC Driver 17 for SQL Server}};"
                 f"SERVER={server_address};"
                 f"DATABASE=master;"
                 f"UID={config['user']};"
-                f"PWD={{{config['password']}}};"  # <-- The triple brackets protect passwords with special characters!
+                f"PWD={{{config['password']}}};"  # Still protecting the password safely!
                 f"Encrypt=yes;"
                 f"TrustServerCertificate=yes;"
             )
             
-            # --- DEBUGGING TOOL ---
-            safe_conn_str = conn_str.replace(config['password'], '********')
-            print(f"\n--- DEBUG: ATTEMPTING CONNECTION ---")
-            print(safe_conn_str)
-            print(f"------------------------------------\n")
-
             conn = pyodbc.connect(conn_str, timeout=5)
             cursor = conn.cursor()
 
@@ -81,6 +72,75 @@ def get_metrics():
                 "server_level_alerts": ["No active server alerts"],
                 "databases": all_databases
             })
+
+        except Exception as e:
+            return jsonify({"error": str(e)}), 500
+
+    return jsonify({"error": "Unsupported database type"})
+
+
+# ---------- NEW FEATURE: PRODUCTION-SAFE INDEX CHECKING ----------
+@app.route('/api/indexes', methods=['GET'])
+def get_indexes():
+    server_name = request.args.get('server')
+    db_name = request.args.get('db')
+    
+    with open('config.json') as config_file:
+        live_configs = json.load(config_file)
+
+    if server_name not in live_configs:
+        return jsonify({"error": "Server not found"}), 404
+
+    config = live_configs[server_name]
+    
+    if config['type'] == 'sqlserver':
+        try:
+            # Clean and simple server address
+            server_address = config['host']
+            if config.get('port') and str(config['port']).strip() != '':
+                server_address = f"{server_address},{config['port']}"
+
+            # Connect DIRECTLY to the selected database
+            conn_str = (
+                f"DRIVER={{ODBC Driver 17 for SQL Server}};"
+                f"SERVER={server_address};"
+                f"DATABASE={db_name};" 
+                f"UID={config['user']};"
+                f"PWD={{{config['password']}}};"
+                f"Encrypt=yes;"
+                f"TrustServerCertificate=yes;"
+            )
+            
+            conn = pyodbc.connect(conn_str, timeout=10)
+            cursor = conn.cursor()
+
+            # 'LIMITED' mode + page_count > 1000 ensures NO production impact
+            index_query = """
+                SELECT 
+                    OBJECT_NAME(ips.OBJECT_ID) AS TableName, 
+                    i.name AS IndexName, 
+                    ROUND(ips.avg_fragmentation_in_percent, 2) AS Fragmentation,
+                    ips.page_count AS PageCount
+                FROM sys.dm_db_index_physical_stats(DB_ID(), NULL, NULL, NULL, 'LIMITED') ips
+                INNER JOIN sys.indexes i ON ips.object_id = i.object_id AND ips.index_id = i.index_id
+                WHERE ips.avg_fragmentation_in_percent > 10.0 
+                  AND ips.page_count > 1000
+                  AND i.name IS NOT NULL
+                ORDER BY ips.avg_fragmentation_in_percent DESC;
+            """
+            cursor.execute(index_query)
+            
+            indexes = []
+            for row in cursor.fetchall():
+                indexes.append({
+                    "table": row.TableName,
+                    "index": row.IndexName,
+                    "fragmentation": row.Fragmentation,
+                    "pages": row.PageCount
+                })
+
+            conn.close()
+            return jsonify({"indexes": indexes})
 
         except Exception as e:
             return jsonify({"error": str(e)}), 500
