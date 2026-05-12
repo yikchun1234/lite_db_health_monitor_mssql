@@ -9,7 +9,7 @@ Step to use
 4. modify enviroment variable PATH as display in the install
 5. batch (cmd) install python odbc
    "py -m pip install pyodbc"
-6. update detials
+6. update details
    "config.json"
 7. open 
    "cd path/to/your/folder"
