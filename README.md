@@ -9,10 +9,12 @@ Step to use
 4. modify enviroment variable PATH as display in the install
 5. batch (cmd) install python odbc
    py -m pip install pyodbc
-6. open 
+6. update detials
+   config.json
+7. open 
    cd path/to/your/folder
    python app.py
-7.  Open the Browser: Open Chrome, Edge, or whatever browser you prefer. (http://127.0.0.1:5000 or http://0.0.0.0:5000).   
+8.  Open the Browser: Open Chrome, Edge, or whatever browser you prefer. (http://127.0.0.1:5000 or http://0.0.0.0:5000).   
 
 P/S 
 Enter the Local Server URL: * If you are running the browser on the same machine where Python is running, type: http://localhost:5000 in the address bar.
