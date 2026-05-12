@@ -11,7 +11,7 @@ Step to use
    "py -m pip install pyodbc"
 6. update details
    "config.json"
-7. open 
+7. open batch (cmd)
    "cd path/to/your/folder"
    "python app.py"
 8.  Open the Browser: Open Chrome, Edge, or whatever browser you prefer. (http://127.0.0.1:5000 or http://0.0.0.0:5000).   
