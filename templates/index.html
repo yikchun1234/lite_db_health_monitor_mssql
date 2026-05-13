@@ -4,6 +4,8 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Database Admin Portal</title>
+    <link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>📊</text></svg>">
+
     <style>
         /* Modern System Font & Background */
         :root {
@@ -26,8 +28,8 @@
         .header-card h2 { margin: 0; color: #0f172a; font-size: 1.6rem; }
 
         /* Controls & Buttons */
-        .controls { display: flex; gap: 15px; align-items: center; }
-        select { padding: 10px 15px; font-size: 15px; border-radius: 8px; border: 1px solid #cbd5e1; outline: none; background: #fff; min-width: 250px; cursor: pointer; }
+        .controls { display: flex; gap: 10px; align-items: center; }
+        select { padding: 10px 15px; font-size: 15px; border-radius: 8px; border: 1px solid #cbd5e1; outline: none; background: #fff; min-width: 230px; cursor: pointer; }
         select:focus { border-color: var(--primary); box-shadow: 0 0 0 3px rgba(14, 165, 233, 0.2); }
         button { padding: 10px 20px; font-size: 15px; font-weight: 600; border-radius: 8px; border: none; background: var(--primary); color: white; cursor: pointer; transition: all 0.2s; box-shadow: 0 2px 4px rgba(14, 165, 233, 0.3); display: flex; align-items: center; justify-content: center; }
         button:hover:not(:disabled) { background: var(--primary-hover); transform: translateY(-1px); }
@@ -40,8 +42,13 @@
         .btn-indigo:hover:not(:disabled) { background: #4f46e5; }
         .btn-page { background: #f1f5f9; color: #334155; border: 1px solid #cbd5e1; box-shadow: none; font-size: 13px; padding: 6px 12px; }
         .btn-page:hover:not(:disabled) { background: #e2e8f0; }
-        .btn-outline { background: white; color: var(--primary); border: 2px solid var(--primary); box-shadow: none; }
+
+        .btn-outline { background: white; color: var(--primary); border: 2px solid var(--primary); box-shadow: none; padding: 10px 15px; }
         .btn-outline:hover:not(:disabled) { background: #f0f9ff; transform: translateY(-1px); color: var(--primary-hover); border-color: var(--primary-hover); }
+        .btn-outline:disabled { border-color: #cbd5e1; color: #94a3b8; background: #f8fafc; opacity: 0.6; cursor: not-allowed; }
+
+        .btn-danger-outline { color: #ef4444; border-color: #ef4444; }
+        .btn-danger-outline:hover:not(:disabled) { background: #fef2f2; color: #b91c1c; border-color: #b91c1c; }
 
         /* Spinners */
         .spinner { border: 3px solid rgba(255, 255, 255, 0.3); border-radius: 50%; border-top: 3px solid #ffffff; width: 16px; height: 16px; animation: spin 0.8s linear infinite; display: inline-block; margin-right: 8px; vertical-align: middle; }
@@ -89,10 +96,11 @@
         .close-btn:hover { color: #0f172a; }
         .form-group { margin-bottom: 15px; }
         .form-group label { display: block; font-size: 13px; font-weight: 600; color: #475569; margin-bottom: 5px; }
-        .form-group input { width: 100%; padding: 10px 12px; font-size: 14px; border: 1px solid #cbd5e1; border-radius: 6px; box-sizing: border-box; outline: none; }
-        .form-group input:focus { border-color: var(--primary); box-shadow: 0 0 0 3px rgba(14, 165, 233, 0.2); }
+        .form-group input { width: 100%; padding: 10px 12px; font-size: 14px; border: 1px solid #cbd5e1; border-radius: 6px; box-sizing: border-box; outline: none; transition: border-color 0.2s; }
+        .form-group input:focus:not([readonly]) { border-color: var(--primary); box-shadow: 0 0 0 3px rgba(14, 165, 233, 0.2); }
+        .form-group input[readonly] { background-color: #f1f5f9; cursor: not-allowed; color: #64748b; border-color: #e2e8f0; }
 
-        /* NEW: Global DBA Tooltip Engine */
+        /* Global DBA Tooltip Engine */
         .info-icon { display: inline-block; margin-left: 6px; background: #e2e8f0; color: #475569; border-radius: 50%; width: 16px; height: 16px; text-align: center; font-size: 12px; line-height: 16px; cursor: help; font-weight: bold; transition: all 0.2s; }
         .info-icon:hover { background: var(--primary); color: white; transform: scale(1.1); }
 
@@ -104,19 +112,32 @@
         .global-tooltip strong { color: #38bdf8; font-weight: 600; }
         .global-tooltip code { background: #0f172a; padding: 2px 4px; border-radius: 4px; color: #10b981; font-family: Consolas, monospace; }
 
+        /* NEW: Toast Notification System */
+        #toastContainer { position: fixed; bottom: 25px; right: 25px; z-index: 9999; display: flex; flex-direction: column; gap: 10px; }
+        .toast { padding: 15px 20px; border-radius: 8px; color: white; font-weight: 600; font-size: 14px; box-shadow: 0 10px 25px rgba(0,0,0,0.2); opacity: 0; transform: translateX(100%); transition: all 0.3s cubic-bezier(0.68, -0.55, 0.265, 1.55); display: flex; align-items: center; gap: 10px; min-width: 250px; }
+        .toast.show { opacity: 1; transform: translateX(0); }
+        .toast.success { background-color: #10b981; border-left: 6px solid #059669; }
+        .toast.error { background-color: #ef4444; border-left: 6px solid #b91c1c; }
+        .toast.info { background-color: #0ea5e9; border-left: 6px solid #0284c7; }
+        .toast-icon { font-size: 18px; }
+
     </style>
 </head>
 <body>
 
 <div id="globalTooltip" class="global-tooltip"></div>
+<div id="toastContainer"></div>
 
 <div class="container">
 
     <div class="header-card">
         <h2>📊 Database Admin Portal</h2>
         <div class="controls">
-            <button id="openModalBtn" class="btn-outline" onclick="openAddServerModal()">➕</button>
-            <select id="serverSelect"><option value="">-- Select a Server --</option></select>
+            <button id="openModalBtn" class="btn-outline" onclick="openAddServerModal(false)" title="Add Server">➕</button>
+            <button id="editServerBtn" class="btn-outline" onclick="openAddServerModal(true)" title="Edit Server" disabled>✏️</button>
+            <button id="deleteServerBtn" class="btn-outline btn-danger-outline" onclick="deleteSelectedServer()" title="Delete Server" disabled>🗑️</button>
+
+            <select id="serverSelect" onchange="handleServerSelection()"><option value="">-- Select a Server --</option></select>
             <button id="refreshBtn" onclick="fetchMetrics()">Refresh Dashboard</button>
         </div>
     </div>
@@ -320,36 +341,70 @@
 <div id="addServerModal" class="modal">
     <div class="modal-content">
         <span class="close-btn" onclick="closeAddServerModal()">&times;</span>
-        <h3 style="margin-top: 0; color: #0f172a; margin-bottom: 20px;">➕ Add New Server</h3>
+        <h3 id="modalTitle" style="margin-top: 0; color: #0f172a; margin-bottom: 20px;">➕ Add New Server</h3>
 
-        <div class="form-group"><label>Server Alias (Display Name)</label><input type="text" id="newAlias" placeholder="e.g. Production_DB_1" required></div>
-        <div class="form-group"><label>Host (IP or DNS Name)</label><input type="text" id="newHost" placeholder="e.g. 192.168.1.50" required></div>
-        <div class="form-group"><label>Port (Optional)</label><input type="text" id="newPort" placeholder="e.g. 1433"></div>
-        <div class="form-group"><label>SQL Username</label><input type="text" id="newUser" placeholder="e.g. sa" required></div>
-        <div class="form-group" style="margin-bottom: 25px;"><label>Password</label><input type="password" id="newPassword" placeholder="••••••••" required></div>
+        <div class="form-group">
+            <label>Server Alias (Display Name)</label>
+            <input type="text" id="newAlias" placeholder="e.g. Production_DB_1" required>
+        </div>
+        <div class="form-group">
+            <label>Host (IP or DNS Name)</label>
+            <input type="text" id="newHost" placeholder="e.g. 192.168.1.50" required>
+        </div>
+        <div class="form-group">
+            <label>Port (Optional)</label>
+            <input type="text" id="newPort" placeholder="e.g. 1433">
+        </div>
+        <div class="form-group">
+            <label>SQL Username</label>
+            <input type="text" id="newUser" placeholder="e.g. sa" required>
+        </div>
+        <div class="form-group" style="margin-bottom: 25px;">
+            <label id="passwordLabel">Password</label>
+            <input type="password" id="newPassword" placeholder="••••••••" required>
+        </div>
 
-        <button onclick="submitNewServer()" style="width: 100%;" id="saveServerBtn" class="btn-success">Save Server</button>
+        <button onclick="submitServer()" style="width: 100%;" id="saveServerBtn" class="btn-success">Save Server</button>
     </div>
 </div>
 
 <script>
-    // --- NEW: Global Custom Tooltip Engine ---
+    // --- NEW: JS Toast Notification Engine ---
+    function showToast(message, type = 'success') {
+        const container = document.getElementById('toastContainer');
+        const toast = document.createElement('div');
+        toast.className = `toast ${type}`;
+
+        let icon = '✅';
+        if (type === 'error') icon = '❌';
+        if (type === 'info') icon = 'ℹ️';
+
+        toast.innerHTML = `<span class="toast-icon">${icon}</span> <span>${message}</span>`;
+        container.appendChild(toast);
+
+        // Animate in
+        setTimeout(() => toast.classList.add('show'), 10);
+
+        // Auto remove after 3.5 seconds
+        setTimeout(() => {
+            toast.classList.remove('show');
+            setTimeout(() => toast.remove(), 300);
+        }, 3500);
+    }
+
+    // --- Global Custom Tooltip Engine ---
     document.addEventListener('DOMContentLoaded', () => {
         const globalTooltip = document.getElementById('globalTooltip');
 
-        // Listen to mouse movement to dynamically position the tooltip anywhere on the screen!
         document.addEventListener('mousemove', function(e) {
             if (e.target.classList && e.target.classList.contains('has-tooltip')) {
-                // Get the rich HTML text from the element
                 globalTooltip.innerHTML = e.target.getAttribute('data-tooltip');
                 globalTooltip.style.opacity = '1';
                 globalTooltip.style.visibility = 'visible';
 
-                // Position it slightly offset from the mouse pointer
                 let x = e.pageX + 15;
                 let y = e.pageY + 15;
 
-                // Smart boundary detection (Prevents tooltip from going off the right side of the screen)
                 if (x + 360 > window.innerWidth) {
                     x = window.innerWidth - 380;
                 }
@@ -357,7 +412,6 @@
                 globalTooltip.style.left = x + 'px';
                 globalTooltip.style.top = y + 'px';
             } else {
-                // Hide it instantly when mouse leaves the (?) icon
                 globalTooltip.style.opacity = '0';
                 globalTooltip.style.visibility = 'hidden';
             }
@@ -368,6 +422,9 @@
     let globalIndexData = [];
     let currentIdxPage = 1;
     const idxRowsPerPage = 10;
+
+    let isEditingMode = false;
+    let currentEditAlias = "";
 
     // --- Core Loading ---
     document.addEventListener("DOMContentLoaded", () => {
@@ -388,42 +445,137 @@
                     select.appendChild(option);
                 });
 
-                if(autoSelectAlias) { select.value = autoSelectAlias; }
+                if(autoSelectAlias) {
+                    select.value = autoSelectAlias;
+                    handleServerSelection();
+                }
             });
     }
 
-    // --- Modal Logic ---
-    function openAddServerModal() { document.getElementById('addServerModal').style.display = 'block'; }
-    function closeAddServerModal() { document.getElementById('addServerModal').style.display = 'none'; }
+    function handleServerSelection() {
+        const selected = document.getElementById('serverSelect').value;
+        const editBtn = document.getElementById('editServerBtn');
+        const delBtn = document.getElementById('deleteServerBtn');
 
-    function submitNewServer() {
+        if (selected) {
+            editBtn.disabled = false;
+            delBtn.disabled = false;
+        } else {
+            editBtn.disabled = true;
+            delBtn.disabled = true;
+        }
+    }
+
+    // --- Modal Logic ---
+    function openAddServerModal(editMode = false) {
+        isEditingMode = editMode;
+        const modalTitle = document.getElementById('modalTitle');
+        const aliasInput = document.getElementById('newAlias');
+        const passLabel = document.getElementById('passwordLabel');
+        const passInput = document.getElementById('newPassword');
+
+        aliasInput.value = '';
+        document.getElementById('newHost').value = '';
+        document.getElementById('newPort').value = '';
+        document.getElementById('newUser').value = '';
+        passInput.value = '';
+        aliasInput.readOnly = false;
+
+        if (editMode) {
+            modalTitle.innerHTML = "✏️ Edit Server";
+            passLabel.innerHTML = "Password (Leave blank to keep current)";
+            passInput.required = false;
+
+            const selectedServer = document.getElementById('serverSelect').value;
+            currentEditAlias = selectedServer;
+            aliasInput.value = selectedServer;
+
+            fetch(`/api/servers/detail?server=${encodeURIComponent(selectedServer)}`)
+                .then(r => r.json())
+                .then(data => {
+                    if(!data.error) {
+                        document.getElementById('newHost').value = data.host || '';
+                        document.getElementById('newPort').value = data.port || '';
+                        document.getElementById('newUser').value = data.user || '';
+                    }
+                });
+
+        } else {
+            modalTitle.innerHTML = "➕ Add New Server";
+            passLabel.innerHTML = "Password";
+            passInput.required = true;
+            currentEditAlias = "";
+        }
+
+        document.getElementById('addServerModal').style.display = 'block';
+    }
+
+    function closeAddServerModal() {
+        document.getElementById('addServerModal').style.display = 'none';
+    }
+
+    function submitServer() {
         const alias = document.getElementById('newAlias').value.trim();
         const host = document.getElementById('newHost').value.trim();
         const port = document.getElementById('newPort').value.trim();
         const user = document.getElementById('newUser').value.trim();
         const password = document.getElementById('newPassword').value.trim();
 
-        if (!alias || !host || !user || !password) return alert("Alias, Host, Username, and Password are required fields.");
+        if (!alias || !host || !user) return showToast("Alias, Host, and Username are required fields.", "error");
+        if (!isEditingMode && !password) return showToast("Password is required for new servers.", "error");
 
         const btn = document.getElementById('saveServerBtn');
         btn.innerHTML = '<span class="spinner spinner-dark" style="border-top-color: white; border-color: rgba(255,255,255,0.3);"></span> Saving...';
         btn.disabled = true;
 
         const serverData = { alias, host, port, type: "sqlserver", user, password };
+        if (isEditingMode) { serverData.original_alias = currentEditAlias; }
 
-        fetch('/api/servers/add', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(serverData) })
+        const endpoint = isEditingMode ? '/api/servers/edit' : '/api/servers/add';
+
+        fetch(endpoint, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(serverData) })
         .then(res => res.json())
         .then(data => {
             btn.innerHTML = "Save Server"; btn.disabled = false;
-            if (data.error) { alert("Error saving server: " + data.error); }
+            if (data.error) { showToast(data.error, "error"); }
             else {
-                alert("✅ Success! " + data.message);
-                document.getElementById('newAlias').value = ''; document.getElementById('newHost').value = '';
-                document.getElementById('newPort').value = ''; document.getElementById('newUser').value = '';
-                document.getElementById('newPassword').value = '';
-                closeAddServerModal(); loadServerDropdown(alias);
+                showToast(data.message, "success");
+                closeAddServerModal();
+                loadServerDropdown(alias);
             }
-        }).catch(err => { btn.innerHTML = "Save Server"; btn.disabled = false; alert("Failed to reach backend API."); });
+        }).catch(err => { btn.innerHTML = "Save Server"; btn.disabled = false; showToast("Failed to reach backend API.", "error"); });
+    }
+
+    function deleteSelectedServer() {
+        const alias = document.getElementById('serverSelect').value;
+        if (!alias) return;
+
+        if (confirm(`Are you absolutely sure you want to remove '${alias}' from the dashboard? This action cannot be undone.`)) {
+            const btn = document.getElementById('deleteServerBtn');
+            btn.disabled = true;
+
+            fetch('/api/servers/delete', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ alias: alias })
+            })
+            .then(res => res.json())
+            .then(data => {
+                if (data.error) {
+                    showToast(data.error, "error");
+                    btn.disabled = false;
+                } else {
+                    showToast(data.message, "success");
+                    document.getElementById('editServerBtn').disabled = true;
+                    btn.disabled = true;
+                    loadServerDropdown();
+                }
+            })
+            .catch(err => {
+                showToast("Failed to reach backend API.", "error");
+                btn.disabled = false;
+            });
+        }
     }
 
     // --- Tool Enablers ---
@@ -440,7 +592,7 @@
     // --- Main Metrics Fetch ---
     function fetchMetrics() {
         const selectedServer = document.getElementById('serverSelect').value;
-        if (!selectedServer) return alert("Please select a server first.");
+        if (!selectedServer) return showToast("Please select a server first.", "error");
 
         const btn = document.getElementById('refreshBtn');
         btn.innerHTML = '<span class="spinner"></span> Refreshing...'; btn.disabled = true;
@@ -595,7 +747,8 @@
 
     function fetchIndexes() {
         const selectedServer = document.getElementById('serverSelect').value; const selectedDB = document.getElementById('dbIndexSelect').value; const selectedTable = document.getElementById('tableIndexSelect').value;
-        if (!selectedServer || !selectedDB) return alert("Please select both a server and a database.");
+        if (!selectedServer || !selectedDB) return showToast("Please select both a server and a database.", "error");
+
         const btn = document.getElementById('indexBtn'); btn.innerHTML = '<span class="spinner"></span> Scanning...'; btn.disabled = true;
         document.getElementById('indexResults').style.display = 'block'; const tbody = document.getElementById('indexTableBody'); const paginationDiv = document.getElementById('indexPagination');
 
@@ -613,7 +766,8 @@
 
     function fetchSecurity() {
         const selectedServer = document.getElementById('serverSelect').value; const selectedDB = document.getElementById('dbSecuritySelect').value;
-        if (!selectedServer || !selectedDB) return alert("Please select both a server and a database.");
+        if (!selectedServer || !selectedDB) return showToast("Please select both a server and a database.", "error");
+
         const btn = document.getElementById('securityBtn'); btn.innerHTML = '<span class="spinner"></span> Validating...'; btn.disabled = true;
         document.getElementById('securityResults').style.display = 'block'; const oTbody = document.getElementById('orphanedTableBody'); const owTbody = document.getElementById('ownerTableBody');
 
