@@ -1,15 +1,82 @@
-from flask import Flask, jsonify, request, render_template
+from flask import Flask, jsonify, request, render_template, session
+from functools import wraps
+from cryptography.fernet import Fernet
 import json
 import pyodbc
 import os
 
 app = Flask(__name__)
+# A secret key is required to keep client-side sessions secure
+app.secret_key = os.urandom(24) 
 
+# ==========================================
+# 🔐 ADMIN CREDENTIALS (CHANGE THESE!)
+# ==========================================
+ADMIN_USERNAME = "admin"
+ADMIN_PASSWORD = "YOURNEWPASSWORD"
+
+# ==========================================
+# 🔐 ENCRYPTION ENGINE SETUP
+# ==========================================
+KEY_FILE = 'encryption.key'
+
+# If no key exists, generate a new secure key
+if not os.path.exists(KEY_FILE):
+    with open(KEY_FILE, 'wb') as f:
+        f.write(Fernet.generate_key())
+
+# Load the key into the Cipher Suite
+with open(KEY_FILE, 'rb') as f:
+    cipher_suite = Fernet(f.read())
+
+def encrypt_password(plain_text):
+    if not plain_text: return ""
+    return cipher_suite.encrypt(plain_text.encode('utf-8')).decode('utf-8')
+
+def decrypt_password(cipher_text):
+    if not cipher_text: return ""
+    try:
+        return cipher_suite.decrypt(cipher_text.encode('utf-8')).decode('utf-8')
+    except:
+        # SMART FALLBACK: If decryption fails, assume it's an old plaintext password!
+        return cipher_text
+
+# ==========================================
+# 🔐 SECURITY DECORATOR (LOCKS ROUTES)
+# ==========================================
+def login_required(f):
+    @wraps(f)
+    def decorated_function(*args, **kwargs):
+        if not session.get('logged_in'):
+            return jsonify({"error": "Unauthorized access. Please log in."}), 401
+        return f(*args, **kwargs)
+    return decorated_function
+
+
+# ==========================================
+# 🌐 ROUTES
+# ==========================================
 @app.route('/')
 def index():
-    return render_template('index.html') 
+    # We pass the session status to the frontend so HTML knows whether to show the Login Screen or Dashboard
+    return render_template('index.html', logged_in=session.get('logged_in', False))
+
+@app.route('/api/login', methods=['POST'])
+def login():
+    data = request.json
+    if data.get('username') == ADMIN_USERNAME and data.get('password') == ADMIN_PASSWORD:
+        session['logged_in'] = True
+        return jsonify({"success": True})
+    return jsonify({"error": "Invalid username or password"}), 401
+
+@app.route('/api/logout', methods=['POST'])
+def logout():
+    session.clear()
+    return jsonify({"success": True})
+
 
 @app.route('/api/databases', methods=['GET'])
+@login_required
 def get_databases():
     if os.path.exists('config.json'):
         with open('config.json', 'r') as config_file:
@@ -17,8 +84,10 @@ def get_databases():
         return jsonify(list(live_configs.keys()))
     return jsonify([])
 
-# ---------- 1. ADD SERVER ----------
+
+# ---------- 1. ADD SERVER (ENCRYPTED) ----------
 @app.route('/api/servers/add', methods=['POST'])
+@login_required
 def add_server():
     try:
         new_server = request.json
@@ -31,7 +100,7 @@ def add_server():
             "port": new_server.get("port", ""),
             "type": new_server.get("type", "sqlserver"),
             "user": new_server.get("user", ""),
-            "password": new_server.get("password", "")
+            "password": encrypt_password(new_server.get("password", "")) # ENCRYPTED!
         }
         
         live_configs = {}
@@ -44,11 +113,13 @@ def add_server():
         with open('config.json', 'w') as config_file:
             json.dump(live_configs, config_file, indent=4)
             
-        return jsonify({"success": True, "message": f"Server '{alias}' added successfully!"})
+        return jsonify({"success": True, "message": f"Server '{alias}' added successfully and password encrypted!"})
     except Exception as e: return jsonify({"error": str(e)}), 500
+
 
 # ---------- 2. GET SERVER DETAILS FOR EDITING ----------
 @app.route('/api/servers/detail', methods=['GET'])
+@login_required
 def get_server_detail():
     alias = request.args.get('server')
     if not alias: return jsonify({"error": "No server provided"}), 400
@@ -60,8 +131,10 @@ def get_server_detail():
             return jsonify({"host": s.get("host",""), "port": s.get("port",""), "user": s.get("user","")})
     return jsonify({"error": "Server not found"}), 404
 
-# ---------- 3. EDIT SERVER ----------
+
+# ---------- 3. EDIT SERVER (ENCRYPTED) ----------
 @app.route('/api/servers/edit', methods=['POST'])
+@login_required
 def edit_server():
     try:
         data = request.json
@@ -85,8 +158,9 @@ def edit_server():
                 configs[new_alias]['port'] = data.get('port', configs[new_alias]['port'])
                 configs[new_alias]['user'] = data.get('user', configs[new_alias]['user'])
                 
+                # Only overwrite and encrypt the password if the user actually typed a new one
                 if data.get('password') and data.get('password').strip() != "":
-                    configs[new_alias]['password'] = data['password']
+                    configs[new_alias]['password'] = encrypt_password(data['password'])
                 
                 with open('config.json', 'w') as f:
                     json.dump(configs, f, indent=4)
@@ -96,8 +170,10 @@ def edit_server():
         return jsonify({"error": "Server not found in config.json"}), 404
     except Exception as e: return jsonify({"error": str(e)}), 500
 
+
 # ---------- 4. DELETE SERVER ----------
 @app.route('/api/servers/delete', methods=['POST'])
+@login_required
 def delete_server():
     try:
         alias = request.json.get('alias')
@@ -114,6 +190,7 @@ def delete_server():
 
 
 @app.route('/api/metrics', methods=['GET'])
+@login_required
 def get_metrics():
     server_name = request.args.get('server')
     
@@ -130,13 +207,16 @@ def get_metrics():
             server_address = config['host']
             if config.get('port') and str(config['port']).strip() != '':
                 server_address = f"{server_address},{config['port']}"
+                
+            # DECRYPT THE PASSWORD TO CONNECT
+            real_password = decrypt_password(config['password'])
 
             conn_str = (
                 f"DRIVER={{ODBC Driver 17 for SQL Server}};"
                 f"SERVER={server_address};"
                 f"DATABASE=master;"
                 f"UID={config['user']};"
-                f"PWD={{{config['password']}}};"
+                f"PWD={{{real_password}}};"
                 f"Encrypt=yes;"
                 f"TrustServerCertificate=yes;"
             )
@@ -267,6 +347,7 @@ def get_metrics():
 
 # ---------- POST-RESTORE SECURITY VALIDATOR ----------
 @app.route('/api/security', methods=['GET'])
+@login_required
 def get_security():
     server_name = request.args.get('server')
     db_name = request.args.get('db')
@@ -278,7 +359,8 @@ def get_security():
         try:
             server_address = config['host']
             if config.get('port') and str(config['port']).strip() != '': server_address = f"{server_address},{config['port']}"
-            conn_str = (f"DRIVER={{ODBC Driver 17 for SQL Server}};SERVER={server_address};DATABASE={db_name};UID={config['user']};PWD={{{config['password']}}};Encrypt=yes;TrustServerCertificate=yes;")
+            real_password = decrypt_password(config['password']) # DECRYPTED
+            conn_str = (f"DRIVER={{ODBC Driver 17 for SQL Server}};SERVER={server_address};DATABASE={db_name};UID={config['user']};PWD={{{real_password}}};Encrypt=yes;TrustServerCertificate=yes;")
             conn = pyodbc.connect(conn_str, timeout=10)
             cursor = conn.cursor()
             
@@ -298,6 +380,7 @@ def get_security():
 
 # ---------- FETCH TABLES ----------
 @app.route('/api/tables', methods=['GET'])
+@login_required
 def get_tables():
     server_name = request.args.get('server')
     db_name = request.args.get('db')
@@ -309,7 +392,8 @@ def get_tables():
         try:
             server_address = config['host']
             if config.get('port') and str(config['port']).strip() != '': server_address = f"{server_address},{config['port']}"
-            conn_str = (f"DRIVER={{ODBC Driver 17 for SQL Server}};SERVER={server_address};DATABASE={db_name};UID={config['user']};PWD={{{config['password']}}};Encrypt=yes;TrustServerCertificate=yes;")
+            real_password = decrypt_password(config['password']) # DECRYPTED
+            conn_str = (f"DRIVER={{ODBC Driver 17 for SQL Server}};SERVER={server_address};DATABASE={db_name};UID={config['user']};PWD={{{real_password}}};Encrypt=yes;TrustServerCertificate=yes;")
             conn = pyodbc.connect(conn_str, timeout=10)
             cursor = conn.cursor()
             
@@ -323,6 +407,7 @@ def get_tables():
 
 # ---------- INDEX CHECKING ----------
 @app.route('/api/indexes', methods=['GET'])
+@login_required
 def get_indexes():
     server_name = request.args.get('server')
     db_name = request.args.get('db')
@@ -336,7 +421,8 @@ def get_indexes():
         try:
             server_address = config['host']
             if config.get('port') and str(config['port']).strip() != '': server_address = f"{server_address},{config['port']}"
-            conn_str = (f"DRIVER={{ODBC Driver 17 for SQL Server}};SERVER={server_address};DATABASE={db_name};UID={config['user']};PWD={{{config['password']}}};Encrypt=yes;TrustServerCertificate=yes;")
+            real_password = decrypt_password(config['password']) # DECRYPTED
+            conn_str = (f"DRIVER={{ODBC Driver 17 for SQL Server}};SERVER={server_address};DATABASE={db_name};UID={config['user']};PWD={{{real_password}}};Encrypt=yes;TrustServerCertificate=yes;")
             conn = pyodbc.connect(conn_str, timeout=10)
             cursor = conn.cursor()
             
