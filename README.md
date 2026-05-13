@@ -11,12 +11,17 @@ Step to use
    "py -m pip install pyodbc"
 6. batch (cmd) install cryptography
    "pip install cryptography"
-7. update details
-   "config.json"
+7. update details 
+   app.py
+   ADMIN_USERNAME = "admin"
+   ADMIN_PASSWORD = "YOURNEWPASSWORD"
 8. open batch (cmd)
    "cd path/to/your/folder"
    "python app.py"
-9.  Open the Browser: Open Chrome, Edge, or whatever browser you prefer. (http://127.0.0.1:5000).   
+9.  Open the Browser: Open Chrome, Edge, or whatever browser you prefer. (http://127.0.0.1:5000).
+10. Login the ADMIN_USERNAME, ADMIN_PASSWORD
+11. Add your own server connection string in the "+"
+12. Refresh dashboard add all the details will come out
 
 P/S 
 Enter the Local Server URL: * If you are running the browser on the same machine where Python is running, type: http://localhost:5000 in the address bar.
