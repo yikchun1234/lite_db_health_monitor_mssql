@@ -1,6 +1,7 @@
 from flask import Flask, jsonify, request, render_template
 import json
 import pyodbc
+import os
 
 app = Flask(__name__)
 
@@ -10,9 +11,107 @@ def index():
 
 @app.route('/api/databases', methods=['GET'])
 def get_databases():
-    with open('config.json') as config_file:
-        live_configs = json.load(config_file)
-    return jsonify(list(live_configs.keys()))
+    if os.path.exists('config.json'):
+        with open('config.json', 'r') as config_file:
+            live_configs = json.load(config_file)
+        return jsonify(list(live_configs.keys()))
+    return jsonify([])
+
+# ---------- 1. ADD SERVER ----------
+@app.route('/api/servers/add', methods=['POST'])
+def add_server():
+    try:
+        new_server = request.json
+        alias = new_server.get('alias')
+        
+        if not alias: return jsonify({"error": "Server Alias Name is required"}), 400
+            
+        config_entry = {
+            "host": new_server.get("host", ""),
+            "port": new_server.get("port", ""),
+            "type": new_server.get("type", "sqlserver"),
+            "user": new_server.get("user", ""),
+            "password": new_server.get("password", "")
+        }
+        
+        live_configs = {}
+        if os.path.exists('config.json'):
+            with open('config.json', 'r') as config_file:
+                live_configs = json.load(config_file)
+            
+        live_configs[alias] = config_entry
+        
+        with open('config.json', 'w') as config_file:
+            json.dump(live_configs, config_file, indent=4)
+            
+        return jsonify({"success": True, "message": f"Server '{alias}' added successfully!"})
+    except Exception as e: return jsonify({"error": str(e)}), 500
+
+# ---------- 2. GET SERVER DETAILS FOR EDITING ----------
+@app.route('/api/servers/detail', methods=['GET'])
+def get_server_detail():
+    alias = request.args.get('server')
+    if not alias: return jsonify({"error": "No server provided"}), 400
+    if os.path.exists('config.json'):
+        with open('config.json', 'r') as f:
+            configs = json.load(f)
+        if alias in configs:
+            s = configs[alias]
+            return jsonify({"host": s.get("host",""), "port": s.get("port",""), "user": s.get("user","")})
+    return jsonify({"error": "Server not found"}), 404
+
+# ---------- 3. EDIT SERVER ----------
+@app.route('/api/servers/edit', methods=['POST'])
+def edit_server():
+    try:
+        data = request.json
+        original_alias = data.get('original_alias')
+        new_alias = data.get('alias')
+        
+        if not original_alias or not new_alias: 
+            return jsonify({"error": "Server Alias Name is required"}), 400
+        
+        if os.path.exists('config.json'):
+            with open('config.json', 'r') as f:
+                configs = json.load(f)
+            
+            if original_alias in configs:
+                if original_alias != new_alias:
+                    if new_alias in configs:
+                        return jsonify({"error": f"A server named '{new_alias}' already exists!"}), 400
+                    configs[new_alias] = configs.pop(original_alias)
+                
+                configs[new_alias]['host'] = data.get('host', configs[new_alias]['host'])
+                configs[new_alias]['port'] = data.get('port', configs[new_alias]['port'])
+                configs[new_alias]['user'] = data.get('user', configs[new_alias]['user'])
+                
+                if data.get('password') and data.get('password').strip() != "":
+                    configs[new_alias]['password'] = data['password']
+                
+                with open('config.json', 'w') as f:
+                    json.dump(configs, f, indent=4)
+                    
+                return jsonify({"success": True, "message": f"Server '{new_alias}' updated successfully!"})
+                
+        return jsonify({"error": "Server not found in config.json"}), 404
+    except Exception as e: return jsonify({"error": str(e)}), 500
+
+# ---------- 4. DELETE SERVER ----------
+@app.route('/api/servers/delete', methods=['POST'])
+def delete_server():
+    try:
+        alias = request.json.get('alias')
+        if os.path.exists('config.json'):
+            with open('config.json', 'r') as f:
+                configs = json.load(f)
+            if alias in configs:
+                del configs[alias]
+                with open('config.json', 'w') as f:
+                    json.dump(configs, f, indent=4)
+                return jsonify({"success": True, "message": "Server deleted successfully."})
+        return jsonify({"error": "Server not found"}), 404
+    except Exception as e: return jsonify({"error": str(e)}), 500
+
 
 @app.route('/api/metrics', methods=['GET'])
 def get_metrics():
@@ -46,7 +145,7 @@ def get_metrics():
             cursor = conn.cursor()
             alerts = []
 
-            # ---------- 1. DRIVES ----------
+            # 1. DRIVES
             drive_query = """
                 SELECT DISTINCT vs.volume_mount_point AS DriveLetter, CAST(vs.available_bytes AS FLOAT) / CAST(vs.total_bytes AS FLOAT) * 100 AS FreeSpacePercent, CAST(vs.available_bytes / 1048576.0 / 1024.0 AS DECIMAL(10,2)) AS FreeSpaceGB, CAST(vs.total_bytes / 1048576.0 / 1024.0 AS DECIMAL(10,2)) AS TotalSpaceGB
                 FROM sys.master_files AS f CROSS APPLY sys.dm_os_volume_stats(f.database_id, f.file_id) AS vs;
@@ -54,7 +153,7 @@ def get_metrics():
             cursor.execute(drive_query)
             all_drives = [{"letter": r.DriveLetter, "free_percent": round(r.FreeSpacePercent, 2), "free_gb": float(r.FreeSpaceGB), "total_gb": float(r.TotalSpaceGB)} for r in cursor.fetchall()]
 
-            # ---------- 2. DATABASES, BACKUP, AND AUTO-SHRINK STATUS ----------
+            # 2. DATABASES, BACKUP, AUTO-SHRINK
             db_query = """
                 WITH BackupCTE AS (SELECT database_name, MAX(backup_finish_date) as LastBackup FROM msdb.dbo.backupset WHERE type = 'D' GROUP BY database_name)
                 SELECT d.name AS DatabaseName, d.state_desc AS Status, ISNULL(SUM(mf.size * 8.0 / 1024), 0) AS Size_in_MB, d.log_reuse_wait_desc AS LogWait, d.is_auto_shrink_on AS IsAutoShrink, CASE WHEN d.name = 'tempdb' THEN 'N/A' WHEN b.LastBackup >= DATEADD(hh, -24, GETDATE()) THEN 'OK' ELSE 'MISSING' END AS BackupStatus
@@ -68,7 +167,7 @@ def get_metrics():
                     "name": row.DatabaseName, "status": row.Status, "size_mb": round(row.Size_in_MB, 2), "log_wait": row.LogWait, "backup_status": row.BackupStatus, "auto_shrink": True if row.IsAutoShrink == 1 else False, "log_used_pct": 0 
                 })
 
-            # ---------- 3. AVAILABILITY GROUP SYNC HEALTH ----------
+            # 3. AG SYNC HEALTH
             ag_query = """
                 SELECT DB_NAME(drs.database_id) AS DatabaseName, ar.replica_server_name AS SecondaryServer, drs.synchronization_state_desc AS SyncState, CAST(ISNULL(drs.log_send_queue_size, 0) / 1024.0 AS DECIMAL(18,2)) AS LogSendQueueMB, CAST(ISNULL(drs.redo_queue_size, 0) / 1024.0 AS DECIMAL(18,2)) AS RedoQueueMB
                 FROM sys.dm_hadr_database_replica_states drs WITH (nolock) JOIN sys.availability_replicas ar WITH (nolock) ON drs.replica_id = ar.replica_id WHERE drs.is_local = 0;
@@ -79,45 +178,32 @@ def get_metrics():
                 ag_sync.append({"database": row.DatabaseName, "secondary": row.SecondaryServer, "state": row.SyncState, "log_queue_mb": float(row.LogSendQueueMB), "redo_queue_mb": float(row.RedoQueueMB)})
                 if float(row.LogSendQueueMB) > 500: alerts.append(f"🚨 CRITICAL: AG Replica '{row.SecondaryServer}' has a Log Send Queue of {row.LogSendQueueMB}MB for '{row.DatabaseName}'!")
 
-            # ---------- 4. LOG FILE USAGE PERCENTAGES ----------
+            # 4. LOG FILE USAGE
             log_query = "SELECT RTRIM(instance_name) AS DatabaseName, cntr_value AS LogUsedPercent FROM sys.dm_os_performance_counters WHERE counter_name = 'Percent Log Used' AND instance_name NOT IN ('master', 'tempdb', 'model', 'msdb', '_Total');"
             cursor.execute(log_query)
             log_usage_dict = {row.DatabaseName: row.LogUsedPercent for row in cursor.fetchall()}
             for db in all_databases:
                 if db['name'] in log_usage_dict: db['log_used_pct'] = log_usage_dict[db['name']]
 
-            # ---------- 5. MEMORY HEALTH (PAGE LIFE EXPECTANCY) ----------
+            # 5. MEMORY HEALTH
             ple_query = "SELECT cntr_value FROM sys.dm_os_performance_counters WHERE counter_name = 'Page life expectancy' AND object_name LIKE '%Buffer Manager%';"
             cursor.execute(ple_query)
             ple_row = cursor.fetchone()
             if ple_row and ple_row.cntr_value < 300: alerts.append(f"🚨 CRITICAL: Memory Health (Page Life Expectancy) is dangerously low at {ple_row.cntr_value} seconds!")
 
-            # ---------- 6. FAILED SQL AGENT JOBS ----------
+            # 6. FAILED JOBS
             jobs_query = """
                 WITH LatestRuns AS (
-                    SELECT 
-                        j.name AS JobName,
-                        h.run_status,
-                        msdb.dbo.agent_datetime(h.run_date, h.run_time) AS RunDateTime,
-                        h.message AS ErrorMessage,
-                        ROW_NUMBER() OVER(PARTITION BY j.job_id ORDER BY h.run_date DESC, h.run_time DESC) as rn
-                    FROM msdb.dbo.sysjobhistory h WITH (nolock)
-                    JOIN msdb.dbo.sysjobs j WITH (nolock) ON h.job_id = j.job_id
-                    WHERE h.step_id = 0 
-                      AND msdb.dbo.agent_datetime(h.run_date, h.run_time) >= DATEADD(hour, -24, GETDATE())
+                    SELECT j.name AS JobName, h.run_status, msdb.dbo.agent_datetime(h.run_date, h.run_time) AS RunDateTime, h.message AS ErrorMessage, ROW_NUMBER() OVER(PARTITION BY j.job_id ORDER BY h.run_date DESC, h.run_time DESC) as rn
+                    FROM msdb.dbo.sysjobhistory h WITH (nolock) JOIN msdb.dbo.sysjobs j WITH (nolock) ON h.job_id = j.job_id
+                    WHERE h.step_id = 0 AND msdb.dbo.agent_datetime(h.run_date, h.run_time) >= DATEADD(hour, -24, GETDATE())
                 )
-                SELECT 
-                    JobName, 
-                    CONVERT(VARCHAR, RunDateTime, 120) AS FailDate, 
-                    ErrorMessage
-                FROM LatestRuns
-                WHERE rn = 1 AND run_status = 0
-                ORDER BY RunDateTime DESC;
+                SELECT JobName, CONVERT(VARCHAR, RunDateTime, 120) AS FailDate, ErrorMessage FROM LatestRuns WHERE rn = 1 AND run_status = 0 ORDER BY RunDateTime DESC;
             """
             cursor.execute(jobs_query)
             failed_jobs = [{"job_name": r.JobName, "fail_date": r.FailDate, "error_message": r.ErrorMessage} for r in cursor.fetchall()]
 
-            # ---------- 7. BLOCKING & LONG QUERY CHECK ----------
+            # 7. BLOCKING & LONG QUERIES
             blocking_query = """
                 SELECT r.session_id, r.blocking_session_id, DB_NAME(r.database_id) AS DatabaseName, r.total_elapsed_time / 1000 AS SecondsRunning, t.text AS QueryText
                 FROM sys.dm_exec_requests r CROSS APPLY sys.dm_exec_sql_text(r.sql_handle) t
@@ -131,7 +217,7 @@ def get_metrics():
                 if len(safe_query_text) > 300: safe_query_text = safe_query_text[:300] + " ... [TRUNCATED]"
                 long_queries.append({"session_id": row.session_id, "database": row.DatabaseName, "seconds": row.SecondsRunning, "query_text": safe_query_text})
 
-            # ---------- 8. THE "SILENT KILLER" (SLEEPING OPEN TRANSACTIONS > 5 MINS) ----------
+            # 8. SLEEPING TRANSACTIONS
             sleep_query = """
                 SELECT st.session_id, DB_NAME(s.database_id) AS DatabaseName, DATEDIFF(SECOND, tat.transaction_begin_time, GETDATE()) AS SecondsRunning, t.text AS QueryText
                 FROM sys.dm_tran_active_transactions tat WITH (nolock) INNER JOIN sys.dm_tran_session_transactions st WITH (nolock) ON tat.transaction_id = st.transaction_id
@@ -146,7 +232,7 @@ def get_metrics():
                     if len(safe_query_text) > 300: safe_query_text = safe_query_text[:300] + " ... [TRUNCATED]"
                     long_queries.append({"session_id": row.session_id, "database": f"{row.DatabaseName} [SLEEPING]", "seconds": row.SecondsRunning, "query_text": safe_query_text})
 
-            # ---------- 9. SYSADMIN SECURITY AUDIT ----------
+            # 9. SYSADMIN AUDIT
             sysadmin_query = """
                 SELECT sp.name AS LoginName, sp.type_desc AS LoginType, sp.is_disabled AS IsDisabled
                 FROM sys.server_principals sp JOIN sys.server_role_members srm ON sp.principal_id = srm.member_principal_id
@@ -156,7 +242,7 @@ def get_metrics():
             cursor.execute(sysadmin_query)
             sysadmins = [{"login_name": r.LoginName, "login_type": r.LoginType, "is_disabled": r.IsDisabled} for r in cursor.fetchall()]
 
-            # ---------- 10. RECENT RESTORES (LAST 7 DAYS) ----------
+            # 10. RECENT RESTORES
             restore_query = """
                 SELECT TOP 50 destination_database_name AS DatabaseName, CONVERT(VARCHAR, restore_date, 120) AS RestoreDate, user_name AS RestoredBy
                 FROM msdb.dbo.restorehistory WHERE restore_date >= DATEADD(day, -7, GETDATE()) ORDER BY restore_date DESC;
@@ -179,7 +265,7 @@ def get_metrics():
 
     return jsonify({"error": "Unsupported database type"})
 
-# ---------- POST-RESTORE SECURITY VALIDATOR (DB LEVEL) ----------
+# ---------- POST-RESTORE SECURITY VALIDATOR ----------
 @app.route('/api/security', methods=['GET'])
 def get_security():
     server_name = request.args.get('server')
@@ -196,20 +282,11 @@ def get_security():
             conn = pyodbc.connect(conn_str, timeout=10)
             cursor = conn.cursor()
             
-            orphaned_query = """
-                SELECT dp.name AS UserName, dp.type_desc AS UserType
-                FROM sys.database_principals dp LEFT JOIN sys.server_principals sp ON dp.sid = sp.sid
-                WHERE sp.sid IS NULL AND dp.type IN ('S', 'U', 'G') AND dp.principal_id > 4 AND dp.name NOT IN ('dbo', 'guest', 'sys', 'INFORMATION_SCHEMA');
-            """
+            orphaned_query = "SELECT dp.name AS UserName, dp.type_desc AS UserType FROM sys.database_principals dp LEFT JOIN sys.server_principals sp ON dp.sid = sp.sid WHERE sp.sid IS NULL AND dp.type IN ('S', 'U', 'G') AND dp.principal_id > 4 AND dp.name NOT IN ('dbo', 'guest', 'sys', 'INFORMATION_SCHEMA');"
             cursor.execute(orphaned_query)
             orphaned_users = [{"user": r.UserName, "type": r.UserType} for r in cursor.fetchall()]
 
-            owner_query = """
-                SELECT dp.name AS UserName, dp.type_desc AS UserType
-                FROM sys.database_role_members drm JOIN sys.database_principals dp ON drm.member_principal_id = dp.principal_id
-                JOIN sys.database_principals rp ON drm.role_principal_id = rp.principal_id
-                WHERE rp.name = 'db_owner' AND dp.name <> 'dbo';
-            """
+            owner_query = "SELECT dp.name AS UserName, dp.type_desc AS UserType FROM sys.database_role_members drm JOIN sys.database_principals dp ON drm.member_principal_id = dp.principal_id JOIN sys.database_principals rp ON drm.role_principal_id = rp.principal_id WHERE rp.name = 'db_owner' AND dp.name <> 'dbo';"
             cursor.execute(owner_query)
             db_owners = [{"user": r.UserName, "type": r.UserType} for r in cursor.fetchall()]
             
@@ -219,7 +296,7 @@ def get_security():
     return jsonify({"error": "Unsupported database type"})
 
 
-# ---------- NEW: FETCH TABLES FOR SPECIFIC DB ----------
+# ---------- FETCH TABLES ----------
 @app.route('/api/tables', methods=['GET'])
 def get_tables():
     server_name = request.args.get('server')
@@ -236,7 +313,6 @@ def get_tables():
             conn = pyodbc.connect(conn_str, timeout=10)
             cursor = conn.cursor()
             
-            # Fetch all user tables
             cursor.execute("SELECT name FROM sys.tables WHERE is_ms_shipped = 0 ORDER BY name;")
             tables = [row.name for row in cursor.fetchall()]
             conn.close()
@@ -245,7 +321,7 @@ def get_tables():
     return jsonify({"error": "Unsupported database type"})
 
 
-# ---------- HIGH-PERFORMANCE INDEX CHECKING ----------
+# ---------- INDEX CHECKING ----------
 @app.route('/api/indexes', methods=['GET'])
 def get_indexes():
     server_name = request.args.get('server')
@@ -264,7 +340,6 @@ def get_indexes():
             conn = pyodbc.connect(conn_str, timeout=10)
             cursor = conn.cursor()
             
-            # Filter specifically if a table is requested
             table_filter = ""
             params = []
             if table_name and table_name != 'all':
@@ -273,33 +348,19 @@ def get_indexes():
 
             index_query = f"""
                 WITH LargeIndexes AS (
-                    SELECT 
-                        i.object_id, 
-                        i.index_id, 
-                        i.name AS IndexName,
-                        SUM(ps.used_page_count) AS TotalPages
-                    FROM sys.indexes i WITH (NOLOCK)
-                    INNER JOIN sys.dm_db_partition_stats ps WITH (NOLOCK) 
-                        ON i.object_id = ps.object_id AND i.index_id = ps.index_id
+                    SELECT i.object_id, i.index_id, i.name AS IndexName, SUM(ps.used_page_count) AS TotalPages
+                    FROM sys.indexes i WITH (NOLOCK) INNER JOIN sys.dm_db_partition_stats ps WITH (NOLOCK) ON i.object_id = ps.object_id AND i.index_id = ps.index_id
                     WHERE i.name IS NOT NULL {table_filter}
                     GROUP BY i.object_id, i.index_id, i.name
                     HAVING SUM(ps.used_page_count) > 1000
                 )
-                SELECT 
-                    OBJECT_NAME(li.object_id) AS TableName, 
-                    li.IndexName, 
-                    ROUND(ips.avg_fragmentation_in_percent, 2) AS Fragmentation, 
-                    ips.page_count AS PageCount
-                FROM LargeIndexes li
-                CROSS APPLY sys.dm_db_index_physical_stats(DB_ID(), li.object_id, li.index_id, NULL, 'LIMITED') ips
-                WHERE ips.avg_fragmentation_in_percent > 10.0
-                ORDER BY ips.avg_fragmentation_in_percent DESC;
+                SELECT OBJECT_NAME(li.object_id) AS TableName, li.IndexName, ROUND(ips.avg_fragmentation_in_percent, 2) AS Fragmentation, ips.page_count AS PageCount
+                FROM LargeIndexes li CROSS APPLY sys.dm_db_index_physical_stats(DB_ID(), li.object_id, li.index_id, NULL, 'LIMITED') ips
+                WHERE ips.avg_fragmentation_in_percent > 10.0 ORDER BY ips.avg_fragmentation_in_percent DESC;
             """
             
-            if params:
-                cursor.execute(index_query, params)
-            else:
-                cursor.execute(index_query)
+            if params: cursor.execute(index_query, params)
+            else: cursor.execute(index_query)
                 
             indexes = [{"table": row.TableName, "index": row.IndexName, "fragmentation": row.Fragmentation, "pages": row.PageCount} for row in cursor.fetchall()]
             conn.close()
