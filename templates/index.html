@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Database Admin Portal</title>
+    <title>📊 Database Admin Portal</title>
     <link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>📊</text></svg>">
 
     <style>
@@ -490,11 +490,36 @@
     }
 
     // --- Logout Function ---
-    function performLogout() {
-        fetch('/api/logout', { method: 'POST' })
-        .then(() => window.location.reload())
-        .catch(() => showToast("Error logging out", "error"));
+    function performLogout(isAuto = false) {
+        if(isAuto) {
+            showToast("Session expired due to inactivity. Logging out...", "info");
+        }
+
+        // Wait just a brief moment so they see the toast if it's an auto-logout
+        setTimeout(() => {
+            fetch('/api/logout', { method: 'POST' })
+            .then(() => window.location.reload())
+            .catch(() => showToast("Error logging out", "error"));
+        }, isAuto ? 1500 : 0);
     }
+
+    // --- NEW: 5-Minute Inactivity Auto-Logout Tracker ---
+    let inactivityTimer;
+    const INACTIVITY_LIMIT_MS = 5 * 60 * 1000; // 5 minutes in milliseconds
+
+    function resetInactivityTimer() {
+        clearTimeout(inactivityTimer);
+        // Set new timer to trigger auto-logout
+        inactivityTimer = setTimeout(() => performLogout(true), INACTIVITY_LIMIT_MS);
+    }
+
+    // Listen for all human activity to reset the 5-minute countdown
+    window.onload = resetInactivityTimer;
+    document.onmousemove = resetInactivityTimer;
+    document.onkeypress = resetInactivityTimer;
+    document.onmousedown = resetInactivityTimer; // Mouse clicks
+    document.ontouchstart = resetInactivityTimer; // Touchscreens
+    document.onscroll = resetInactivityTimer; // Scrolling
 
     // --- Global Custom Tooltip Engine ---
     document.addEventListener('DOMContentLoaded', () => {
@@ -715,6 +740,9 @@
         const selectedServer = document.getElementById('serverSelect').value;
         if (!selectedServer) return showToast("Please select a server first.", "error");
 
+        // NEW: Instantly smooth scroll back to the top of the page!
+        window.scrollTo({ top: 0, behavior: 'smooth' });
+
         const btn = document.getElementById('refreshBtn');
         btn.innerHTML = '<span class="spinner"></span> Refreshing...'; btn.disabled = true;
         setToolsEnabled(false);
@@ -725,6 +753,15 @@
         document.getElementById('results').style.display = 'block';
         document.getElementById('alertBox').style.display = 'none'; document.getElementById('longQueriesContainer').style.display = 'none';
         document.getElementById('failedJobsContainer').style.display = 'none'; document.getElementById('agContainer').style.display = 'none';
+
+        // Hide the bottom tool results and clear tables
+        document.getElementById('indexResults').style.display = 'none';
+        document.getElementById('indexTableBody').innerHTML = '';
+        document.getElementById('indexPagination').innerHTML = '';
+
+        document.getElementById('securityResults').style.display = 'none';
+        document.getElementById('orphanedTableBody').innerHTML = '';
+        document.getElementById('ownerTableBody').innerHTML = '';
 
         const sysadminBody = document.getElementById('sysadminBody'); const restoreBody = document.getElementById('restoreBody');
         sysadminBody.innerHTML = "<tr><td colspan='3' class='text-center' style='padding: 20px; color: #64748b;'><span class='spinner spinner-dark'></span> Refreshing...</td></tr>";
