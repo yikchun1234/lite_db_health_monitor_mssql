@@ -92,7 +92,7 @@ def get_metrics():
             ple_row = cursor.fetchone()
             if ple_row and ple_row.cntr_value < 300: alerts.append(f"🚨 CRITICAL: Memory Health (Page Life Expectancy) is dangerously low at {ple_row.cntr_value} seconds!")
 
-            # ---------- 6. FAILED SQL AGENT JOBS (UPDATED: ONLY IF LATEST RUN FAILED) ----------
+            # ---------- 6. FAILED SQL AGENT JOBS ----------
             jobs_query = """
                 WITH LatestRuns AS (
                     SELECT 
@@ -218,7 +218,7 @@ def get_security():
         except Exception as e: return jsonify({"error": str(e)}), 500
     return jsonify({"error": "Unsupported database type"})
 
-# ---------- PRODUCTION-SAFE INDEX CHECKING ----------
+# ---------- HIGH-PERFORMANCE INDEX CHECKING ----------
 @app.route('/api/indexes', methods=['GET'])
 def get_indexes():
     server_name = request.args.get('server')
@@ -234,10 +234,31 @@ def get_indexes():
             conn_str = (f"DRIVER={{ODBC Driver 17 for SQL Server}};SERVER={server_address};DATABASE={db_name};UID={config['user']};PWD={{{config['password']}}};Encrypt=yes;TrustServerCertificate=yes;")
             conn = pyodbc.connect(conn_str, timeout=10)
             cursor = conn.cursor()
+            
+            # --- THE "SMART SQL" TRICK: Fast metadata scan + targeted physical scan ---
             index_query = """
-                SELECT OBJECT_NAME(ips.OBJECT_ID) AS TableName, i.name AS IndexName, ROUND(ips.avg_fragmentation_in_percent, 2) AS Fragmentation, ips.page_count AS PageCount
-                FROM sys.dm_db_index_physical_stats(DB_ID(), NULL, NULL, NULL, 'LIMITED') ips INNER JOIN sys.indexes i ON ips.object_id = i.object_id AND ips.index_id = i.index_id
-                WHERE ips.avg_fragmentation_in_percent > 10.0 AND ips.page_count > 1000 AND i.name IS NOT NULL ORDER BY ips.avg_fragmentation_in_percent DESC;
+                WITH LargeIndexes AS (
+                    SELECT 
+                        i.object_id, 
+                        i.index_id, 
+                        i.name AS IndexName,
+                        SUM(ps.used_page_count) AS TotalPages
+                    FROM sys.indexes i WITH (NOLOCK)
+                    INNER JOIN sys.dm_db_partition_stats ps WITH (NOLOCK) 
+                        ON i.object_id = ps.object_id AND i.index_id = ps.index_id
+                    WHERE i.name IS NOT NULL
+                    GROUP BY i.object_id, i.index_id, i.name
+                    HAVING SUM(ps.used_page_count) > 1000
+                )
+                SELECT 
+                    OBJECT_NAME(li.object_id) AS TableName, 
+                    li.IndexName, 
+                    ROUND(ips.avg_fragmentation_in_percent, 2) AS Fragmentation, 
+                    ips.page_count AS PageCount
+                FROM LargeIndexes li
+                CROSS APPLY sys.dm_db_index_physical_stats(DB_ID(), li.object_id, li.index_id, NULL, 'LIMITED') ips
+                WHERE ips.avg_fragmentation_in_percent > 10.0
+                ORDER BY ips.avg_fragmentation_in_percent DESC;
             """
             cursor.execute(index_query)
             indexes = [{"table": row.TableName, "index": row.IndexName, "fragmentation": row.Fragmentation, "pages": row.PageCount} for row in cursor.fetchall()]
