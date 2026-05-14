@@ -8,22 +8,23 @@ Step to use
    "python -m pip install flask"
 4. modify enviroment variable PATH as display in the install
 5. batch (cmd) install
+
    "py -m pip install pyodbc"
    
    "pip install cryptography"
    
    "pip install flask-sqlalchemy apscheduler SQLAlchemy"
    
-7. update details in app.py
+6. update details in app.py
    ADMIN_USERNAME = "admin",
    ADMIN_PASSWORD = "YOURNEWPASSWORD"
-8. open batch (cmd)
+7. open batch (cmd)
    "cd path/to/your/folder"
    "python app.py"
-9.  Open the Browser: Open Chrome, Edge, or whatever browser you prefer. (http://127.0.0.1:5000).
-10. Login the ADMIN_USERNAME, ADMIN_PASSWORD
-11. Add your own server connection string in the "+"
-12. Refresh dashboard add all the details will come out
+8.  Open the Browser: Open Chrome, Edge, or whatever browser you prefer. (http://127.0.0.1:5000).
+9. Login the ADMIN_USERNAME, ADMIN_PASSWORD
+10. Add your own server connection string in the "+"
+11. Refresh dashboard add all the details will come out
 
 P/S 
 Enter the Local Server URL: * If you are running the browser on the same machine where Python is running, type: http://localhost:5000 in the address bar.
