@@ -27,11 +27,8 @@ Step to use
 ```
    cd path/to/your/folder
 ```
-9. start up the service
-```   
-   py app.py
-```   
-10.  Open the Browser: Open Chrome, Edge, or whatever browser you prefer. (http://127.0.0.1:5000).
+9. Start up the service click **start_dashboard.bat**
+10. Open the Browser: Open Chrome, Edge, or whatever browser you prefer. (http://127.0.0.1:5000).
 11. Login the ADMIN_USERNAME, ADMIN_PASSWORD
 12. Add your own server connection string in the "+"
 13. Refresh dashboard add all the details will come out
