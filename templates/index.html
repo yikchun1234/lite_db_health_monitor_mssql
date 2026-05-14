@@ -5,40 +5,21 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Database Admin Portal</title>
     <link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>📊</text></svg>">
-
     <style>
-        /* Modern System Font & Background */
-        :root {
-            --primary: #0ea5e9;
-            --primary-hover: #0284c7;
-            --bg: #f0f2f5;
-            --text: #334155;
-            --border: #e2e8f0;
-        }
-
+        :root { --primary: #0ea5e9; --primary-hover: #0284c7; --bg: #f0f2f5; --text: #334155; --border: #e2e8f0; }
         body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; padding: 20px; background: var(--bg); color: var(--text); margin: 0; }
-
-        /* Login Screen Styles */
         .login-wrapper { display: flex; justify-content: center; align-items: center; min-height: 90vh; }
         .login-card { background: white; border-radius: 12px; padding: 40px; box-shadow: 0 10px 25px rgba(0,0,0,0.1); width: 100%; max-width: 400px; text-align: center; border: 1px solid var(--border); position: relative; }
         .login-card h2 { margin-top: 0; color: #0f172a; margin-bottom: 5px; font-size: 1.8rem; }
         .login-card p { color: #64748b; margin-bottom: 25px; font-size: 14px; }
         .login-card .form-group { text-align: left; }
-
-        /* NEW: Info Button on Login Screen */
         .info-btn-login { position: absolute; top: 15px; right: 15px; background: #e2e8f0; color: #475569; border: none; border-radius: 50%; width: 28px; height: 28px; font-weight: bold; font-family: serif; font-size: 14px; cursor: pointer; transition: all 0.2s; display: flex; align-items: center; justify-content: center; }
         .info-btn-login:hover { background: var(--primary); color: white; transform: scale(1.1); }
-
-        /* Main Container & Cards */
         .container { max-width: 1200px; margin: auto; }
-        .card { background: white; border-radius: 12px; padding: 25px; box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05), 0 2px 4px -1px rgba(0, 0, 0, 0.03); margin-bottom: 25px; border: 1px solid var(--border); }
+        .card { background: white; border-radius: 12px; padding: 25px; box-shadow: 0 4px 6px -1px rgba(0,0,0,0.05), 0 2px 4px -1px rgba(0,0,0,0.03); margin-bottom: 25px; border: 1px solid var(--border); }
         .card h3 { margin-top: 0; color: #0f172a; font-size: 1.1rem; border-bottom: 2px solid var(--bg); padding-bottom: 10px; margin-bottom: 15px; }
-
-        /* Sticky Header Card */
         .header-card { background: rgba(255, 255, 255, 0.95); backdrop-filter: blur(10px); border-radius: 12px; padding: 20px 25px; box-shadow: 0 4px 15px rgba(0,0,0,0.08); margin-bottom: 25px; border: 1px solid var(--border); display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 15px; position: sticky; top: 15px; z-index: 1000; }
         .header-card h2 { margin: 0; color: #0f172a; font-size: 1.6rem; }
-
-        /* Controls & Buttons */
         .controls { display: flex; gap: 10px; align-items: center; }
         select { padding: 10px 15px; font-size: 15px; border-radius: 8px; border: 1px solid #cbd5e1; outline: none; background: #fff; min-width: 230px; cursor: pointer; }
         select:focus { border-color: var(--primary); box-shadow: 0 0 0 3px rgba(14, 165, 233, 0.2); }
@@ -46,31 +27,22 @@
         button:hover:not(:disabled) { background: var(--primary-hover); transform: translateY(-1px); }
         button:disabled { background: #94a3b8; cursor: not-allowed; transform: none; box-shadow: none; opacity: 0.7; }
         select:disabled { background: #f8fafc; cursor: not-allowed; color: #94a3b8; }
-
         .btn-success { background: #10b981; box-shadow: 0 2px 4px rgba(16, 185, 129, 0.3); }
         .btn-success:hover:not(:disabled) { background: #059669; }
         .btn-indigo { background: #6366f1; box-shadow: 0 2px 4px rgba(99, 102, 241, 0.3); }
         .btn-indigo:hover:not(:disabled) { background: #4f46e5; }
         .btn-page { background: #f1f5f9; color: #334155; border: 1px solid #cbd5e1; box-shadow: none; font-size: 13px; padding: 6px 12px; }
         .btn-page:hover:not(:disabled) { background: #e2e8f0; }
-
-        /* Outline Buttons for Add/Edit/Delete/Logout */
         .btn-outline { background: white; color: var(--primary); border: 2px solid var(--primary); box-shadow: none; padding: 10px 15px; }
         .btn-outline:hover:not(:disabled) { background: #f0f9ff; transform: translateY(-1px); color: var(--primary-hover); border-color: var(--primary-hover); }
         .btn-outline:disabled { border-color: #cbd5e1; color: #94a3b8; background: #f8fafc; opacity: 0.6; cursor: not-allowed; }
-
         .btn-danger-outline { color: #ef4444; border-color: #ef4444; }
         .btn-danger-outline:hover:not(:disabled) { background: #fef2f2; color: #b91c1c; border-color: #b91c1c; }
-
         .btn-danger { background: #ef4444; box-shadow: 0 2px 4px rgba(239, 68, 68, 0.3); }
         .btn-danger:hover:not(:disabled) { background: #dc2626; }
-
-        /* Spinners */
         .spinner { border: 3px solid rgba(255, 255, 255, 0.3); border-radius: 50%; border-top: 3px solid #ffffff; width: 16px; height: 16px; animation: spin 0.8s linear infinite; display: inline-block; margin-right: 8px; vertical-align: middle; }
         .spinner-dark { border: 3px solid #e2e8f0; border-top: 3px solid var(--primary); }
         @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
-
-        /* Tables */
         .table-responsive { width: 100%; overflow-x: auto; -webkit-overflow-scrolling: touch; }
         table { width: 100%; border-collapse: collapse; margin-top: 5px; font-size: 14px; min-width: 600px; }
         th, td { padding: 12px 15px; border-bottom: 1px solid var(--border); text-align: left; vertical-align: middle; }
@@ -80,31 +52,23 @@
         .text-right { text-align: right; }
         .text-center { text-align: center; }
         strong { color: #0f172a; }
-
-        /* Badges & Alerts */
         .badge { padding: 5px 10px; border-radius: 20px; font-size: 12px; font-weight: 700; display: inline-block; text-align: center; white-space: nowrap; }
         .badge-success { background: #dcfce7; color: #166534; }
         .badge-danger { background: #fee2e2; color: #991b1b; }
         .badge-warning { background: #fef9c3; color: #854d0e; }
         .badge-neutral { background: #f1f5f9; color: #475569; }
         .badge-indigo { background: #e0e7ff; color: #3730a3; }
-
         .alerts { background: #fef2f2; padding: 15px; border-left: 5px solid #ef4444; border-radius: 0 8px 8px 0; margin-bottom: 25px; box-shadow: 0 2px 4px rgba(0,0,0,0.05); }
         .alerts strong { color: #991b1b; font-size: 1.1rem; }
         .alerts ul { margin: 10px 0 0 0; color: #7f1d1d; padding-left: 20px; line-height: 1.6; }
         .alerts-healthy { background: #f0fdf4; border-left-color: #22c55e; }
         .alerts-healthy strong { color: #15803d; }
         .alerts-healthy ul { color: #166534; }
-
         .sql-code { font-family: "Cascadia Code", Consolas, monospace; font-size: 12.5px; background: #1e293b; color: #e2e8f0; padding: 10px 12px; border-radius: 6px; display: block; white-space: pre-wrap; min-width: 300px; max-width: 100%; overflow-x: auto; border: 1px solid #0f172a; }
         .error-code { font-family: "Cascadia Code", Consolas, monospace; font-size: 12.5px; color: #991b1b; background: #fee2e2; padding: 8px; border-radius: 4px; display: block; white-space: pre-wrap; min-width: 300px; }
-
-        /* Progress Bar */
         .progress-bar-container { background: #e2e8f0; border-radius: 12px; width: 100px; height: 20px; position: relative; margin: 0 auto; overflow: hidden; }
         .progress-bar-fill { height: 100%; position: absolute; left: 0; top: 0; transition: width 0.5s ease; }
         .progress-bar-text { position: absolute; width: 100%; text-align: center; font-size: 11px; font-weight: bold; line-height: 20px; z-index: 2; }
-
-        /* Modals */
         .modal { display: none; position: fixed; z-index: 2000; left: 0; top: 0; width: 100%; height: 100%; background-color: rgba(0,0,0,0.5); backdrop-filter: blur(4px); }
         .modal-content { background-color: #fff; margin: 10% auto; padding: 30px; border-radius: 12px; width: 400px; box-shadow: 0 10px 25px rgba(0,0,0,0.1); position: relative; }
         .close-btn { position: absolute; top: 20px; right: 25px; font-size: 24px; cursor: pointer; color: #64748b; font-weight: bold; }
@@ -114,20 +78,11 @@
         .form-group input { width: 100%; padding: 10px 12px; font-size: 14px; border: 1px solid #cbd5e1; border-radius: 6px; box-sizing: border-box; outline: none; transition: border-color 0.2s; }
         .form-group input:focus:not([readonly]) { border-color: var(--primary); box-shadow: 0 0 0 3px rgba(14, 165, 233, 0.2); }
         .form-group input[readonly] { background-color: #f1f5f9; cursor: not-allowed; color: #64748b; border-color: #e2e8f0; }
-
-        /* Global DBA Tooltip Engine */
         .info-icon { display: inline-block; margin-left: 6px; background: #e2e8f0; color: #475569; border-radius: 50%; width: 16px; height: 16px; text-align: center; font-size: 12px; line-height: 16px; cursor: help; font-weight: bold; transition: all 0.2s; }
         .info-icon:hover { background: var(--primary); color: white; transform: scale(1.1); }
-
-        .global-tooltip {
-            position: absolute; z-index: 9999; background: #1e293b; color: #f8fafc; padding: 15px; border-radius: 8px; width: 340px;
-            pointer-events: none; opacity: 0; visibility: hidden; transition: opacity 0.2s; box-shadow: 0 10px 25px rgba(0,0,0,0.3);
-            font-size: 13px; line-height: 1.5; font-family: -apple-system, sans-serif; text-transform: none; font-weight: normal; border: 1px solid #0f172a;
-        }
+        .global-tooltip {position: absolute; z-index: 9999; background: #1e293b; color: #f8fafc; padding: 15px; border-radius: 8px; width: 340px; pointer-events: none; opacity: 0; visibility: hidden; transition: opacity 0.2s; box-shadow: 0 10px 25px rgba(0,0,0,0.3); font-size: 13px; line-height: 1.5; font-family: -apple-system, sans-serif; text-transform: none; font-weight: normal; border: 1px solid #0f172a; }
         .global-tooltip strong { color: #38bdf8; font-weight: 600; }
         .global-tooltip code { background: #0f172a; padding: 2px 4px; border-radius: 4px; color: #10b981; font-family: Consolas, monospace; }
-
-        /* Toast Notification System */
         #toastContainer { position: fixed; bottom: 25px; right: 25px; z-index: 9999; display: flex; flex-direction: column; gap: 10px; }
         .toast { padding: 15px 20px; border-radius: 8px; color: white; font-weight: 600; font-size: 14px; box-shadow: 0 10px 25px rgba(0,0,0,0.2); opacity: 0; transform: translateX(100%); transition: all 0.3s cubic-bezier(0.68, -0.55, 0.265, 1.55); display: flex; align-items: center; gap: 10px; min-width: 250px; }
         .toast.show { opacity: 1; transform: translateX(0); }
@@ -135,7 +90,6 @@
         .toast.error { background-color: #ef4444; border-left: 6px solid #b91c1c; }
         .toast.info { background-color: #0ea5e9; border-left: 6px solid #0284c7; }
         .toast-icon { font-size: 18px; }
-
     </style>
 </head>
 <body>
@@ -143,852 +97,989 @@
 <div id="toastContainer"></div>
 
 {% if not logged_in %}
-
-<div class="login-wrapper">
-    <div class="login-card">
-        <button class="info-btn-login" onclick="openAboutModal()" title="About this portal">i</button>
-
-        <div style="font-size: 50px; margin-bottom: 10px;">🛡️</div>
-        <h2>Secure Access</h2>
-        <p>Please log in to manage your database servers.</p>
-
-        <div class="form-group">
-            <label>Admin Username</label>
-            <input type="text" id="loginUser" placeholder="Enter username" onkeydown="if(event.key === 'Enter') attemptLogin()">
-        </div>
-        <div class="form-group" style="margin-bottom: 25px;">
-            <label>Password</label>
-            <input type="password" id="loginPass" placeholder="Enter password" onkeydown="if(event.key === 'Enter') attemptLogin()">
-        </div>
-
-        <button id="loginBtn" onclick="attemptLogin()" style="width: 100%;">Secure Login</button>
-
-        <div style="margin-top: 25px; font-size: 13px; color: #94a3b8; font-weight: 500;">
-            Designed and created by Amos
+    <div class="login-wrapper">
+        <div class="login-card">
+            <button class="info-btn-login" onclick="openAboutModal()" title="About this portal">i</button>
+            <div style="font-size: 50px; margin-bottom: 10px;">🛡️</div>
+            <h2>Secure Access</h2>
+            <p>Please log in to manage your database servers.</p>
+            <div class="form-group">
+                <label>Admin Username</label>
+                <input type="text" id="loginUser" placeholder="Enter username" onkeydown="if(event.key === 'Enter') attemptLogin()">
+            </div>
+            <div class="form-group" style="margin-bottom: 25px;">
+                <label>Password</label>
+                <input type="password" id="loginPass" placeholder="Enter password" onkeydown="if(event.key === 'Enter') attemptLogin()">
+            </div>
+            <button id="loginBtn" onclick="attemptLogin()" style="width: 100%;">Secure Login</button>
+            <div style="margin-top: 25px; font-size: 13px; color: #94a3b8; font-weight: 500;">
+                Designed and created by Amos
+            </div>
         </div>
     </div>
-</div>
 
-<div id="aboutModal" class="modal">
-    <div class="modal-content" style="width: 450px; text-align: left; padding: 30px;">
-        <span class="close-btn" onclick="closeAboutModal()">&times;</span>
-        <h3 style="margin-top: 0; color: #0f172a; border-bottom: 2px solid #f0f2f5; padding-bottom: 10px; font-size: 1.3rem;">ℹ️ About this Portal</h3>
-
-        <p style="color: #475569; font-size: 14px; line-height: 1.6;">
-            <strong>Function:</strong><br>
-            This is a highly secure, read-only monitoring dashboard designed to provide real-time health metrics, active query analysis, and security validation for SQL Server instances.
-        </p>
-
-        <p style="color: #475569; font-size: 14px; line-height: 1.6; margin-bottom: 5px;">
-            <strong>How to Use:</strong>
-        </p>
-        <ul style="color: #475569; font-size: 13px; line-height: 1.6; padding-left: 20px; margin-top: 5px;">
-            <li><strong>Log in</strong> using your authorized Admin credentials.</li>
-            <li>Click the <strong>➕ (Add)</strong> button to securely register new SQL Servers. Passwords are automatically encrypted via the internal cipher suite.</li>
-            <li>Select a server from the dropdown and click <strong>Refresh Dashboard</strong> to view live metrics (Storage, Agent Jobs, Active Queries, AlwaysOn Sync, etc.).</li>
-            <li>Use the specialized tools at the bottom to actively scan for <strong>Index Fragmentation</strong> or validate <strong>Post-Restore Security</strong>.</li>
-            <li>Hover over any <strong>(?)</strong> icon for a built-in DBA interactive guide.</li>
-        </ul>
-
-        <p style="color: #94a3b8; font-size: 12px; margin-top: 20px; text-align: center; padding-top: 15px; border-top: 1px solid #f0f2f5;">
-            <em>For your security, the system will automatically lock and log you out after 5 minutes of inactivity.</em>
-        </p>
+    <div id="aboutModal" class="modal">
+        <div class="modal-content" style="width: 450px; text-align: left; padding: 30px;">
+            <span class="close-btn" onclick="closeAboutModal()">&times;</span>
+            <h3 style="margin-top: 0; color: #0f172a; border-bottom: 2px solid #f0f2f5; padding-bottom: 10px; font-size: 1.3rem;">ℹ️ About this Portal</h3>
+            <p style="color: #475569; font-size: 14px; line-height: 1.6;">
+                <strong>Function:</strong><br>
+                This is a highly secure, read-only monitoring dashboard designed to provide real-time health metrics, active query analysis, and security validation for SQL Server instances.
+            </p>
+            <p style="color: #475569; font-size: 14px; line-height: 1.6; margin-bottom: 5px;">
+                <strong>How to Use:</strong>
+            </p>
+            <ul style="color: #475569; font-size: 13px; line-height: 1.6; padding-left: 20px; margin-top: 5px;">
+                <li><strong>Log in</strong> using your authorized Admin credentials.</li>
+                <li>Click the <strong>➕ (Add)</strong> button to securely register new SQL Servers. Passwords are encrypted.</li>
+                <li>Select a server from the dropdown and click <strong>Refresh Dashboard</strong> to view live metrics.</li>
+                <li>Use the specialized tools at the bottom to actively scan for <strong>Index Fragmentation</strong> or validate <strong>Post-Restore Security</strong>.</li>
+                <li>Hover over any <strong>(?)</strong> icon for a built-in DBA interactive guide.</li>
+            </ul>
+            <p style="color: #94a3b8; font-size: 12px; margin-top: 20px; text-align: center; padding-top: 15px; border-top: 1px solid #f0f2f5;">
+                <em>For your security, the system will automatically lock and log you out after 5 minutes of inactivity.</em>
+            </p>
+        </div>
     </div>
-</div>
 
-<script>
-    // Toast logic
-    function showToast(message, type = 'success') {
-        const container = document.getElementById('toastContainer');
-        const toast = document.createElement('div');
-        toast.className = `toast ${type}`;
-        let icon = type === 'error' ? '❌' : (type === 'info' ? 'ℹ️' : '✅');
-        toast.innerHTML = `<span class="toast-icon">${icon}</span> <span>${message}</span>`;
-        container.appendChild(toast);
-        setTimeout(() => toast.classList.add('show'), 10);
-        setTimeout(() => { toast.classList.remove('show'); setTimeout(() => toast.remove(), 300); }, 3500);
-    }
+    <script>
+        function showToast(message, type = 'success') {
+            const container = document.getElementById('toastContainer');
+            const toast = document.createElement('div');
+            toast.className = `toast ${type}`;
+            let icon = type === 'error' ? '❌' : (type === 'info' ? 'ℹ️' : '✅');
+            toast.innerHTML = `<span class="toast-icon">${icon}</span> <span>${message}</span>`;
+            container.appendChild(toast);
+            setTimeout(() => toast.classList.add('show'), 10);
+            setTimeout(() => { toast.classList.remove('show'); setTimeout(() => toast.remove(), 300); }, 3500);
+        }
 
-    // Modal logic for Login Screen
-    function openAboutModal() {
-        document.getElementById('aboutModal').style.display = 'block';
-    }
+        function openAboutModal() { document.getElementById('aboutModal').style.display = 'block'; }
+        function closeAboutModal() { document.getElementById('aboutModal').style.display = 'none'; }
 
-    function closeAboutModal() {
-        document.getElementById('aboutModal').style.display = 'none';
-    }
+        function attemptLogin() {
+            const user = document.getElementById('loginUser').value;
+            const pass = document.getElementById('loginPass').value;
+            if (!user || !pass) return showToast("Please enter both username and password.", "error");
 
-    // Login logic
-    function attemptLogin() {
-        const user = document.getElementById('loginUser').value;
-        const pass = document.getElementById('loginPass').value;
-        if (!user || !pass) return showToast("Please enter both username and password.", "error");
+            const btn = document.getElementById('loginBtn');
+            btn.innerHTML = '<span class="spinner spinner-dark" style="border-top-color: white; border-color: rgba(255,255,255,0.3);"></span> Verifying...';
+            btn.disabled = true;
 
-        const btn = document.getElementById('loginBtn');
-        btn.innerHTML = '<span class="spinner spinner-dark" style="border-top-color: white; border-color: rgba(255,255,255,0.3);"></span> Verifying...';
-        btn.disabled = true;
-
-        fetch('/api/login', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ username: user, password: pass })
-        })
-        .then(res => res.json())
-        .then(data => {
-            if (data.success) {
-                // Instantly reload page. The server will now send the full Dashboard HTML!
-                window.location.reload();
-            } else {
-                btn.innerHTML = "Secure Login";
-                btn.disabled = false;
-                showToast(data.error || "Authentication failed", "error");
-            }
-        }).catch(err => {
-            btn.innerHTML = "Secure Login";
-            btn.disabled = false;
-            showToast("Failed to reach server.", "error");
-        });
-    }
-</script>
-
+            fetch('/api/login', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ username: user, password: pass })
+            })
+            .then(res => res.json())
+            .then(data => {
+                if (data.success) { window.location.reload(); }
+                else {
+                    btn.innerHTML = "Secure Login"; btn.disabled = false;
+                    showToast(data.error || "Authentication failed", "error");
+                }
+            }).catch(err => {
+                btn.innerHTML = "Secure Login"; btn.disabled = false;
+                showToast("Failed to reach server.", "error");
+            });
+        }
+    </script>
 {% else %}
 
-<div id="globalTooltip" class="global-tooltip"></div>
+    <div id="globalTooltip" class="global-tooltip"></div>
 
-<div class="container">
-
-    <div class="header-card">
-        <h2>📊 Database Admin Portal</h2>
-        <div class="controls">
-            <button id="openModalBtn" class="btn-outline" onclick="openAddServerModal(false)" title="Add Server">➕</button>
-            <button id="editServerBtn" class="btn-outline" onclick="openAddServerModal(true)" title="Edit Server" disabled>✏️</button>
-            <button id="deleteServerBtn" class="btn-outline btn-danger-outline" onclick="openDeleteServerModal()" title="Delete Server" disabled>🗑️</button>
-
-            <select id="serverSelect" onchange="handleServerSelection()"><option value="">-- Select a Server --</option></select>
-            <button id="refreshBtn" onclick="fetchMetrics()">Refresh Dashboard</button>
-
-            <button class="btn-outline btn-danger-outline" style="margin-left: 10px;" onclick="performLogout()" title="Logout">🚪 Logout</button>
-        </div>
-    </div>
-
-    <div id="results" style="display: none;">
-
-        <div id="alertBox" class="alerts" style="display: none;">
-            <strong id="alertTitle">⚠️ Critical Server Alerts</strong>
-            <ul id="serverAlerts"></ul>
-        </div>
-
-        <div id="sysadminContainer" class="card" style="border-left: 4px solid #8b5cf6;">
-            <h3 style="color: #6d28d9;">🛡️ Sysadmin Accounts (Server Admins)</h3>
-            <div class="table-responsive">
-                <table>
-                    <thead>
-                        <tr>
-                            <th>Login Name <span class="info-icon has-tooltip" data-tooltip="<strong>Login Name:</strong> The exact SQL or Windows Domain account that has been granted full SysAdmin (god-mode) access to this server.">?</span></th>
-                            <th>Type <span class="info-icon has-tooltip" data-tooltip="<strong>Account Type:</strong><br><br><strong>SQL_LOGIN:</strong> A basic password account created inside SQL Server.<br><strong>WINDOWS_LOGIN:</strong> A specific user linked from Active Directory.<br><strong>WINDOWS_GROUP:</strong> An entire AD group (Highly dangerous if not monitored!).">?</span></th>
-                            <th class="text-center">Status <span class="info-icon has-tooltip" data-tooltip="<strong>Active:</strong> The account can currently log in.<br><strong>Disabled:</strong> The account exists for history, but has been locked by a DBA.">?</span></th>
-                        </tr>
-                    </thead>
-                    <tbody id="sysadminBody"></tbody>
-                </table>
+    <div class="container">
+        <div class="header-card">
+            <h2>📊 Database Admin Portal</h2>
+            <div class="controls">
+                <button id="openModalBtn" class="btn-outline" onclick="openAddServerModal(false)" title="Add Server">➕</button>
+                <button id="editServerBtn" class="btn-outline" onclick="openAddServerModal(true)" title="Edit Server" disabled>✏️</button>
+                <button id="deleteServerBtn" class="btn-outline btn-danger-outline" onclick="openDeleteServerModal()" title="Delete Server" disabled>🗑️</button>
+                <select id="serverSelect" onchange="handleServerSelection()"><option value="">-- Select a Server --</option></select>
+                <button id="refreshBtn" onclick="fetchMetrics()">Refresh Dashboard</button>
+                <button class="btn-outline btn-danger-outline" style="margin-left: 10px;" onclick="performLogout()" title="Logout">🚪 Logout</button>
             </div>
         </div>
 
-        <div id="longQueriesContainer" class="card" style="display: none; border-left: 4px solid #ef4444;">
-            <h3 style="color: #dc2626;">🚨 Active Blocked, Long-Running, or Sleeping Queries</h3>
-            <div class="table-responsive">
-                <table>
-                    <thead>
-                        <tr>
-                            <th style="width: 10%;">Session ID <span class="info-icon has-tooltip" data-tooltip="<strong>Session ID (SPID):</strong> The unique process number. If a query is stuck or blocking others, you can kill it by running:<br><br><code>KILL [Session ID]</code>">?</span></th>
-                            <th style="width: 15%;">Database <span class="info-icon has-tooltip" data-tooltip="The specific database this query is executing against.">?</span></th>
-                            <th class="text-right" style="width: 15%;">Time (Secs) <span class="info-icon has-tooltip" data-tooltip="How long this exact query has been running. Anything over 60 seconds is usually a red flag for OLTP databases.">?</span></th>
-                            <th style="width: 60%;">Query Text <span class="info-icon has-tooltip" data-tooltip="The actual SQL code being executed.<br><br>If it ends in <strong>[TRUNCATED]</strong>, the code was too massive to display fully on the dashboard.">?</span></th>
-                        </tr>
-                    </thead>
-                    <tbody id="longQueriesBody"></tbody>
-                </table>
+        <div id="results" style="display: none;">
+            <div id="alertBox" class="alerts" style="display: none;">
+                <strong id="alertTitle">⚠️ Critical Server Alerts</strong>
+                <ul id="serverAlerts"></ul>
             </div>
-        </div>
 
-        <div id="failedJobsContainer" class="card" style="display: none; border-left: 4px solid #f97316;">
-            <h3 style="color: #ea580c;">❌ Failed SQL Agent Jobs (Last 24 Hours)</h3>
-            <div class="table-responsive">
-                <table>
-                    <thead>
-                        <tr>
-                            <th style="width: 20%;">Job Name <span class="info-icon has-tooltip" data-tooltip="The name of the automated SQL Server Agent Job that crashed.">?</span></th>
-                            <th style="width: 15%;">Failed At <span class="info-icon has-tooltip" data-tooltip="The exact date and time the job threw an error. Note: If the job ran again later and succeeded, it will automatically disappear from this list!">?</span></th>
-                            <th style="width: 65%;">Error Message <span class="info-icon has-tooltip" data-tooltip="The high-level error returned by the server. <br><br><em>Pro Tip:</em> Open SSMS, go to SQL Server Agent -> Job Activity Monitor to see the exact step that failed.">?</span></th>
-                        </tr>
-                    </thead>
-                    <tbody id="failedJobsBody"></tbody>
-                </table>
+            <div id="corruptionContainer" class="card" style="display: none; border-left: 4px solid #991b1b; background-color: #fef2f2;">
+                <h3 style="color: #7f1d1d;">☠️ DATABASE CORRUPTION DETECTED</h3>
+                <p style="color: #991b1b; font-weight: bold; font-size: 13px;">Immediate action required. Run DBCC CHECKDB immediately and prepare to restore from backup.</p>
+                <div class="table-responsive">
+                    <table>
+                        <thead>
+                            <tr>
+                                <th>Database <span class="info-icon has-tooltip" data-tooltip="The database suffering from data corruption.">?</span></th>
+                                <th>File ID <span class="info-icon has-tooltip" data-tooltip="The specific physical file (.mdf or .ndf) that is corrupted.">?</span></th>
+                                <th>Page ID <span class="info-icon has-tooltip" data-tooltip="The exact 8KB page on the hard drive that is unreadable.">?</span></th>
+                                <th>Error Type <span class="info-icon has-tooltip" data-tooltip="<strong>1:</strong> 823/824 Hardware Read Error<br><strong>2:</strong> Bad Checksum<br><strong>3:</strong> Torn Page">?</span></th>
+                            </tr>
+                        </thead>
+                        <tbody id="corruptionBody"></tbody>
+                    </table>
+                </div>
             </div>
-        </div>
 
-        <div id="agContainer" class="card" style="display: none; border-left: 4px solid #0ea5e9;">
-            <h3 style="color: #0ea5e9;">🔄 Availability Group Sync Health</h3>
-            <div class="table-responsive">
-                <table>
-                    <thead>
-                        <tr>
-                            <th>Database <span class="info-icon has-tooltip" data-tooltip="The database that is joined to the AlwaysOn Availability Group cluster.">?</span></th>
-                            <th>Secondary Server <span class="info-icon has-tooltip" data-tooltip="The destination server that is receiving the replicated data.">?</span></th>
-                            <th class="text-center">State <span class="info-icon has-tooltip" data-tooltip="<strong>HEALTHY / SYNCHRONIZED:</strong> Perfect.<br><br><strong>NOT_SYNCHRONIZING:</strong> Replication has broken. Check the network connection between primary and secondary nodes immediately.">?</span></th>
-                            <th class="text-right">Log Send (MB) <span class="info-icon has-tooltip" data-tooltip="<strong>Log Send Queue:</strong> The amount of data generated on the Primary server waiting to be sent across the network.<br><br>If this is high, your <strong>Network connection</strong> is too slow!">?</span></th>
-                            <th class="text-right">Redo Queue (MB) <span class="info-icon has-tooltip" data-tooltip="<strong>Redo Queue:</strong> The data has reached the Secondary server, but is waiting to be written to disk.<br><br>If this is high, your Secondary server's <strong>Disk or CPU</strong> is too slow!">?</span></th>
-                        </tr>
-                    </thead>
-                    <tbody id="agTableBody"></tbody>
-                </table>
+            <div class="card" style="border-left: 4px solid #3b82f6;">
+                <h3 style="color: #2563eb;">⚡ Server CPU & Top Wait Statistics</h3>
+                <div style="margin-bottom: 20px; padding: 15px; background: #f8fafc; border-radius: 8px; border: 1px solid #e2e8f0;">
+                    <strong style="font-size: 14px; color: #475569;">SQL Server CPU Utilization: <span id="sqlCpuValue" style="color: #0ea5e9; font-size: 16px;">0%</span></strong>
+                    <div class="progress-bar-container" style="width: 100%; height: 10px; margin-top: 8px; background: #cbd5e1;">
+                        <div id="cpuProgressBar" class="progress-bar-fill" style="background: #3b82f6; width: 0%;"></div>
+                    </div>
+                </div>
+                <div class="table-responsive">
+                    <table>
+                        <thead>
+                            <tr>
+                                <th>Top Wait Type <span class="info-icon has-tooltip" data-tooltip="<strong>Wait Type:</strong> The specific bottleneck causing queries to slow down right now.<br><br><strong>CXPACKET:</strong> Parallelism (usually safe, but high numbers mean bad indexes).<br><strong>PAGEIOLATCH:</strong> Disk drive is too slow to read data.<br><strong>SOS_SCHEDULER_YIELD:</strong> CPU is maxed out.">?</span></th>
+                                <th class="text-right">Total Wait (Sec) <span class="info-icon has-tooltip" data-tooltip="The cumulative amount of time the server has spent waiting on this specific bottleneck since the last server reboot.">?</span></th>
+                                <th class="text-right">% of Total <span class="info-icon has-tooltip" data-tooltip="The percentage this bottleneck represents out of all active bottlenecks on the server. If a single wait type is over 50%, it's your primary issue!">?</span></th>
+                            </tr>
+                        </thead>
+                        <tbody id="waitStatsBody"></tbody>
+                    </table>
+                </div>
+            </div>
+
+            <div id="sysadminContainer" class="card" style="border-left: 4px solid #8b5cf6;">
+                <h3 style="color: #6d28d9;">🛡️ Sysadmin Accounts (Server Admins)</h3>
+                <div class="table-responsive">
+                    <table>
+                        <thead>
+                            <tr>
+                                <th>Login Name <span class="info-icon has-tooltip" data-tooltip="<strong>Login Name:</strong> The exact SQL or Windows Domain account that has been granted full SysAdmin (god-mode) access to this server.">?</span></th>
+                                <th>Type <span class="info-icon has-tooltip" data-tooltip="<strong>Account Type:</strong><br><br><strong>SQL_LOGIN:</strong> A basic password account created inside SQL Server.<br><strong>WINDOWS_LOGIN:</strong> A specific user linked from Active Directory.<br><strong>WINDOWS_GROUP:</strong> An entire AD group (Highly dangerous if not monitored!).">?</span></th>
+                                <th class="text-center">Status <span class="info-icon has-tooltip" data-tooltip="<strong>Active:</strong> The account can currently log in.<br><strong>Disabled:</strong> The account exists for history, but has been locked by a DBA.">?</span></th>
+                            </tr>
+                        </thead>
+                        <tbody id="sysadminBody"></tbody>
+                    </table>
+                </div>
+            </div>
+
+            <div id="longQueriesContainer" class="card" style="display: none; border-left: 4px solid #ef4444;">
+                <h3 style="color: #dc2626;">🚨 Active Blocked, Long-Running, or Sleeping Queries</h3>
+                <div class="table-responsive">
+                    <table>
+                        <thead>
+                            <tr>
+                                <th style="width: 10%;">Session ID <span class="info-icon has-tooltip" data-tooltip="<strong>Session ID (SPID):</strong> The unique process number. If a query is stuck or blocking others, you can kill it by running:<br><br><code>KILL [Session ID]</code>">?</span></th>
+                                <th style="width: 15%;">Database <span class="info-icon has-tooltip" data-tooltip="The specific database this query is executing against.">?</span></th>
+                                <th class="text-right" style="width: 15%;">Time (Secs) <span class="info-icon has-tooltip" data-tooltip="How long this exact query has been running. Anything over 60 seconds is usually a red flag for OLTP databases.">?</span></th>
+                                <th style="width: 60%;">Query Text <span class="info-icon has-tooltip" data-tooltip="The actual SQL code being executed.<br><br>If it ends in <strong>[TRUNCATED]</strong>, the code was too massive to display fully on the dashboard.">?</span></th>
+                            </tr>
+                        </thead>
+                        <tbody id="longQueriesBody"></tbody>
+                    </table>
+                </div>
+            </div>
+
+            <div id="failedJobsContainer" class="card" style="display: none; border-left: 4px solid #f97316;">
+                <h3 style="color: #ea580c;">❌ Failed SQL Agent Jobs (Last 24 Hours)</h3>
+                <div class="table-responsive">
+                    <table>
+                        <thead>
+                            <tr>
+                                <th style="width: 20%;">Job Name <span class="info-icon has-tooltip" data-tooltip="The name of the automated SQL Server Agent Job that crashed.">?</span></th>
+                                <th style="width: 15%;">Failed At <span class="info-icon has-tooltip" data-tooltip="The exact date and time the job threw an error. Note: If the job ran again later and succeeded, it will automatically disappear from this list!">?</span></th>
+                                <th style="width: 65%;">Error Message <span class="info-icon has-tooltip" data-tooltip="The high-level error returned by the server. <br><br><em>Pro Tip:</em> Open SSMS, go to SQL Server Agent -> Job Activity Monitor to see the exact step that failed.">?</span></th>
+                            </tr>
+                        </thead>
+                        <tbody id="failedJobsBody"></tbody>
+                    </table>
+                </div>
+            </div>
+
+            <div id="agContainer" class="card" style="display: none; border-left: 4px solid #0ea5e9;">
+                <h3 style="color: #0ea5e9;">🔄 Availability Group Sync Health</h3>
+                <div class="table-responsive">
+                    <table>
+                        <thead>
+                            <tr>
+                                <th>Database <span class="info-icon has-tooltip" data-tooltip="The database that is joined to the AlwaysOn Availability Group cluster.">?</span></th>
+                                <th>Secondary Server <span class="info-icon has-tooltip" data-tooltip="The destination server that is receiving the replicated data.">?</span></th>
+                                <th class="text-center">State <span class="info-icon has-tooltip" data-tooltip="<strong>HEALTHY / SYNCHRONIZED:</strong> Perfect.<br><br><strong>NOT_SYNCHRONIZING:</strong> Replication has broken. Check the network connection between primary and secondary nodes immediately.">?</span></th>
+                                <th class="text-right">Log Send (MB) <span class="info-icon has-tooltip" data-tooltip="<strong>Log Send Queue:</strong> The amount of data generated on the Primary server waiting to be sent across the network.<br><br>If this is high, your <strong>Network connection</strong> is too slow!">?</span></th>
+                                <th class="text-right">Redo Queue (MB) <span class="info-icon has-tooltip" data-tooltip="<strong>Redo Queue:</strong> The data has reached the Secondary server, but is waiting to be written to disk.<br><br>If this is high, your Secondary server's <strong>Disk or CPU</strong> is too slow!">?</span></th>
+                            </tr>
+                        </thead>
+                        <tbody id="agTableBody"></tbody>
+                    </table>
+                </div>
+            </div>
+
+            <div class="card" style="border-left: 4px solid #f59e0b;">
+                <h3 style="color: #d97706;">🔥 TempDB Health & Contention</h3>
+                <div class="table-responsive">
+                    <table>
+                        <thead>
+                            <tr>
+                                <th class="text-right">User Objects (MB) <span class="info-icon has-tooltip" data-tooltip="Size of temporary tables (#table) explicitly created by developers or users.">?</span></th>
+                                <th class="text-right">Internal Objects (MB) <span class="info-icon has-tooltip" data-tooltip="Space used by the SQL engine for sorting, hashing, and spooling large queries. If this is massive, you have bad queries missing indexes.">?</span></th>
+                                <th class="text-right">Version Store (MB) <span class="info-icon has-tooltip" data-tooltip="Space used for Snapshot Isolation and Triggers.">?</span></th>
+                                <th class="text-right">Free Space (MB) <span class="info-icon has-tooltip" data-tooltip="Unallocated, ready-to-use space in TempDB.">?</span></th>
+                                <th class="text-center">Active Contention <span class="info-icon has-tooltip" data-tooltip="<strong>PAGELATCH Contention:</strong> The number of active queries bottlenecked trying to allocate new pages in TempDB.<br><br><em>Fix:</em> Increase the number of TempDB data files to match your logical CPU core count (up to 8).">?</span></th>
+                            </tr>
+                        </thead>
+                        <tbody id="tempdbBody"></tbody>
+                    </table>
+                </div>
+            </div>
+
+            <div class="card">
+                <h3>💽 Server Drives</h3>
+                <div class="table-responsive">
+                    <table>
+                        <thead>
+                            <tr>
+                                <th>Drive Letter <span class="info-icon has-tooltip" data-tooltip="The physical hard drive partition on the Windows OS level where database files are stored.">?</span></th>
+                                <th class="text-right">Free Space (GB) <span class="info-icon has-tooltip" data-tooltip="Raw Gigabytes remaining on the drive.">?</span></th>
+                                <th class="text-right">Total Space (GB) <span class="info-icon has-tooltip" data-tooltip="The total formatted size of the physical drive.">?</span></th>
+                                <th class="text-right">Free % <span class="info-icon has-tooltip" data-tooltip="<strong>DANGER:</strong> If your C: drive hits 0%, the Windows OS will blue-screen. If a Data drive hits 0%, SQL Server will completely halt all inserts/updates!<br><br>Keep this above 10-15%.">?</span></th>
+                            </tr>
+                        </thead>
+                        <tbody id="driveTableBody"></tbody>
+                    </table>
+                </div>
+            </div>
+
+            <div class="card">
+                <h3>🗄️ Databases on Server</h3>
+                <div class="table-responsive">
+                    <table>
+                        <thead>
+                            <tr>
+                                <th>Database Name <span class="info-icon has-tooltip" data-tooltip="The logical database housing the tables and data.">?</span></th>
+                                <th class="text-center">Status <span class="info-icon has-tooltip" data-tooltip="<strong>ONLINE:</strong> Healthy and readable.<br><strong>RECOVERY:</strong> DB is currently starting up after a crash.<br><strong>SUSPECT:</strong> Data file is corrupted. Hardware failure likely.">?</span></th>
+                                <th class="text-right">Size (MB) <span class="info-icon has-tooltip" data-tooltip="Combined physical size of the Data (.mdf) and Log (.ldf) files on disk.">?</span></th>
+                                <th class="text-center">Backup (24h) <span class="info-icon has-tooltip" data-tooltip="<strong>OK:</strong> A Full or Differential backup completed successfully in the last 24 hours.<br><br><strong>MISSING:</strong> No backup exists! Check your backup jobs immediately.">?</span></th>
+                                <th class="text-center">Auto-Shrink <span class="info-icon has-tooltip" data-tooltip="<strong>DBA WARNING:</strong> Auto-Shrink should ALWAYS be OFF.<br><br>If ON, it constantly shrinks and expands files, causing massive physical disk fragmentation and terrible performance.<br><br><em>Fix:</em> <code>ALTER DATABASE [db] SET AUTO_SHRINK OFF</code>">?</span></th>
+                                <th class="text-center">Log Usage <span class="info-icon has-tooltip" data-tooltip="Shows how full the active Transaction Log file is. If this bar reaches 100%, the database will freeze completely and reject all new data!<br><br>If it is filling up rapidly, check the Log Wait Reason.">?</span></th>
+                                <th class="text-center">Log Wait Reason <span class="info-icon has-tooltip" data-tooltip="<strong>DBA CHEAT SHEET: LOG WAIT RESOLUTION</strong><br><hr style='border:0; border-top:1px solid #475569; margin:8px 0;'><strong style='color:#10b981;'>NOTHING:</strong> Database log is healthy.<br><br><strong style='color:#ef4444;'>LOG_BACKUP:</strong> The log file is full and waiting to be cleared.<br><em>Fix:</em> Run <code>BACKUP LOG [DB_Name] TO DISK='...'</code><br><br><strong style='color:#f59e0b;'>ACTIVE_TRANSACTION:</strong> An open query forgot to COMMIT, blocking the log.<br><em>Fix:</em> Check 'Long Queries' card. Find the session and run <code>KILL [ID]</code>.<br><br><strong style='color:#f59e0b;'>AVAILABILITY_REPLICA:</strong> Waiting on AG secondary node.<br><em>Fix:</em> Check AG network and Secondary server disk speed.<br><br><strong style='color:#f59e0b;'>REPLICATION:</strong> Log waiting to be read by publisher.<br><em>Fix:</em> Open Replication Monitor, check for broken distributions.">?</span></th>
+                            </tr>
+                        </thead>
+                        <tbody id="dbTableBody"></tbody>
+                    </table>
+                </div>
+            </div>
+
+            <div id="restoreContainer" class="card" style="border-left: 4px solid #14b8a6;">
+                <h3 style="color: #0f766e;">⏪ Database Restores (Last 7 Days)</h3>
+                <div class="table-responsive">
+                    <table>
+                        <thead>
+                            <tr>
+                                <th>Database Name <span class="info-icon has-tooltip" data-tooltip="The database that was restored.">?</span></th>
+                                <th>Restored By <span class="info-icon has-tooltip" data-tooltip="The exact user who executed the RESTORE command. Useful for finding out 'Who overwrote my data?!'">?</span></th>
+                                <th class="text-right">Restore Date <span class="info-icon has-tooltip" data-tooltip="When the restore successfully finished processing.">?</span></th>
+                            </tr>
+                        </thead>
+                        <tbody id="restoreBody"></tbody>
+                    </table>
+                </div>
             </div>
         </div>
 
         <div class="card">
-            <h3>💽 Server Drives</h3>
-            <div class="table-responsive">
-                <table>
-                    <thead>
-                        <tr>
-                            <th>Drive Letter <span class="info-icon has-tooltip" data-tooltip="The physical hard drive partition on the Windows OS level where database files are stored.">?</span></th>
-                            <th class="text-right">Free Space (GB) <span class="info-icon has-tooltip" data-tooltip="Raw Gigabytes remaining on the drive.">?</span></th>
-                            <th class="text-right">Total Space (GB) <span class="info-icon has-tooltip" data-tooltip="The total formatted size of the physical drive.">?</span></th>
-                            <th class="text-right">Free % <span class="info-icon has-tooltip" data-tooltip="<strong>DANGER:</strong> If your C: drive hits 0%, the Windows OS will blue-screen. If a Data drive hits 0%, SQL Server will completely halt all inserts/updates!<br><br>Keep this above 10-15%.">?</span></th>
-                        </tr>
-                    </thead>
-                    <tbody id="driveTableBody"></tbody>
-                </table>
+            <h3>⚡ Index Fragmentation Scanner</h3>
+            <p style="color: #64748b; font-size: 13px; margin-top: -10px; margin-bottom: 15px;">Safely scans for fragmentation > 10% on tables with > 1000 pages. Select a specific table to scan it instantly!</p>
+            <div class="controls">
+                <select id="dbIndexSelect" disabled onchange="fetchTablesForIndex()"><option value="">-- Select a Database --</option></select>
+                <select id="tableIndexSelect" disabled><option value="all">-- All Tables (Slow) --</option></select>
+                <button id="indexBtn" class="btn-success" onclick="fetchIndexes()" disabled>Scan Indexes</button>
+            </div>
+
+            <div id="indexResults" style="display: none; margin-top: 20px;">
+                <div class="table-responsive">
+                    <table>
+                        <thead>
+                            <tr>
+                                <th>Table Name <span class="info-icon has-tooltip" data-tooltip="The parent table the index belongs to.">?</span></th>
+                                <th>Index Name <span class="info-icon has-tooltip" data-tooltip="The B-Tree structure used to speed up queries.">?</span></th>
+                                <th class="text-right">Fragmentation % <span class="info-icon has-tooltip" data-tooltip="How physically scattered the data is on the hard drive.<br><br><strong>10% - 30%:</strong> Run <code>ALTER INDEX REORGANIZE</code><br><strong>> 30%:</strong> Run <code>ALTER INDEX REBUILD</code>">?</span></th>
+                                <th class="text-right">Page Count <span class="info-icon has-tooltip" data-tooltip="The size of the index. (1 Page = 8 Kilobytes).<br><br>We ignore small indexes (< 1000 pages) because they fit entirely in RAM, so fragmentation doesn't affect their speed.">?</span></th>
+                            </tr>
+                        </thead>
+                        <tbody id="indexTableBody"></tbody>
+                    </table>
+                </div>
+                <div id="indexPagination" style="margin-top: 15px; display: flex; justify-content: flex-end; align-items: center; gap: 10px;"></div>
             </div>
         </div>
 
         <div class="card">
-            <h3>🗄️ Databases on Server</h3>
-            <div class="table-responsive">
-                <table>
-                    <thead>
-                        <tr>
-                            <th>Database Name <span class="info-icon has-tooltip" data-tooltip="The logical database housing the tables and data.">?</span></th>
-                            <th class="text-center">Status <span class="info-icon has-tooltip" data-tooltip="<strong>ONLINE:</strong> Healthy and readable.<br><strong>RECOVERY:</strong> DB is currently starting up after a crash.<br><strong>SUSPECT:</strong> Data file is corrupted. Hardware failure likely.">?</span></th>
-                            <th class="text-right">Size (MB) <span class="info-icon has-tooltip" data-tooltip="Combined physical size of the Data (.mdf) and Log (.ldf) files on disk.">?</span></th>
-                            <th class="text-center">Backup (24h) <span class="info-icon has-tooltip" data-tooltip="<strong>OK:</strong> A Full or Differential backup completed successfully in the last 24 hours.<br><br><strong>MISSING:</strong> No backup exists! Check your backup jobs immediately.">?</span></th>
-                            <th class="text-center">Auto-Shrink <span class="info-icon has-tooltip" data-tooltip="<strong>DBA WARNING:</strong> Auto-Shrink should ALWAYS be OFF.<br><br>If ON, it constantly shrinks and expands files, causing massive physical disk fragmentation and terrible performance.<br><br><em>Fix:</em> <code>ALTER DATABASE [db] SET AUTO_SHRINK OFF</code>">?</span></th>
-                            <th class="text-center">Log Usage <span class="info-icon has-tooltip" data-tooltip="Shows how full the active Transaction Log file is. If this bar reaches 100%, the database will freeze completely and reject all new data!<br><br>If it is filling up rapidly, check the Log Wait Reason.">?</span></th>
-
-                            <th class="text-center">Log Wait Reason <span class="info-icon has-tooltip" data-tooltip="<strong>DBA CHEAT SHEET: LOG WAIT RESOLUTION</strong><br><hr style='border:0; border-top:1px solid #475569; margin:8px 0;'><strong style='color:#10b981;'>NOTHING:</strong> Database log is healthy.<br><br><strong style='color:#ef4444;'>LOG_BACKUP:</strong> The log file is full and waiting to be cleared.<br><em>Fix:</em> Run <code>BACKUP LOG [DB_Name] TO DISK='...'</code><br><br><strong style='color:#f59e0b;'>ACTIVE_TRANSACTION:</strong> An open query forgot to COMMIT, blocking the log.<br><em>Fix:</em> Check 'Long Queries' card. Find the session and run <code>KILL [ID]</code>.<br><br><strong style='color:#f59e0b;'>AVAILABILITY_REPLICA:</strong> Waiting on AG secondary node.<br><em>Fix:</em> Check AG network and Secondary server disk speed.<br><br><strong style='color:#f59e0b;'>REPLICATION:</strong> Log waiting to be read by publisher.<br><em>Fix:</em> Open Replication Monitor, check for broken distributions.">?</span></th>
-                        </tr>
-                    </thead>
-                    <tbody id="dbTableBody"></tbody>
-                </table>
-            </div>
-        </div>
-
-        <div id="restoreContainer" class="card" style="border-left: 4px solid #14b8a6;">
-            <h3 style="color: #0f766e;">⏪ Database Restores (Last 7 Days)</h3>
-            <div class="table-responsive">
-                <table>
-                    <thead>
-                        <tr>
-                            <th>Database Name <span class="info-icon has-tooltip" data-tooltip="The database that was restored.">?</span></th>
-                            <th>Restored By <span class="info-icon has-tooltip" data-tooltip="The exact user who executed the RESTORE command. Useful for finding out 'Who overwrote my data?!'">?</span></th>
-                            <th class="text-right">Restore Date <span class="info-icon has-tooltip" data-tooltip="When the restore successfully finished processing.">?</span></th>
-                        </tr>
-                    </thead>
-                    <tbody id="restoreBody"></tbody>
-                </table>
-            </div>
-        </div>
-
-    </div>
-
-    <div class="card">
-        <h3>⚡ Index Fragmentation Scanner</h3>
-        <p style="color: #64748b; font-size: 13px; margin-top: -10px; margin-bottom: 15px;">
-            Safely scans for fragmentation > 10% on tables with > 1000 pages. Select a specific table to scan it instantly!
-        </p>
-        <div class="controls">
-            <select id="dbIndexSelect" disabled onchange="fetchTablesForIndex()"><option value="">-- Select a Database --</option></select>
-            <select id="tableIndexSelect" disabled><option value="all">-- All Tables (Slow) --</option></select>
-            <button id="indexBtn" class="btn-success" onclick="fetchIndexes()" disabled>Scan Indexes</button>
-        </div>
-
-        <div id="indexResults" style="display: none; margin-top: 20px;">
-            <div class="table-responsive">
-                <table>
-                    <thead>
-                        <tr>
-                            <th>Table Name <span class="info-icon has-tooltip" data-tooltip="The parent table the index belongs to.">?</span></th>
-                            <th>Index Name <span class="info-icon has-tooltip" data-tooltip="The B-Tree structure used to speed up queries.">?</span></th>
-                            <th class="text-right">Fragmentation % <span class="info-icon has-tooltip" data-tooltip="How physically scattered the data is on the hard drive.<br><br><strong>10% - 30%:</strong> Run <code>ALTER INDEX REORGANIZE</code><br><strong>> 30%:</strong> Run <code>ALTER INDEX REBUILD</code>">?</span></th>
-                            <th class="text-right">Page Count <span class="info-icon has-tooltip" data-tooltip="The size of the index. (1 Page = 8 Kilobytes).<br><br>We ignore small indexes (< 1000 pages) because they fit entirely in RAM, so fragmentation doesn't affect their speed.">?</span></th>
-                        </tr>
-                    </thead>
-                    <tbody id="indexTableBody"></tbody>
-                </table>
-            </div>
-            <div id="indexPagination" style="margin-top: 15px; display: flex; justify-content: flex-end; align-items: center; gap: 10px;"></div>
-        </div>
-    </div>
-
-    <div class="card">
-        <h3>🔐 Post-Restore Security Validator</h3>
-        <p style="color: #64748b; font-size: 13px; margin-top: -10px; margin-bottom: 15px;">Identify broken (orphaned) users and review all db_owner admins.</p>
-        <div class="controls">
-            <select id="dbSecuritySelect" disabled onchange="checkSecurityDB()"><option value="">-- Select a Database --</option></select>
-            <button id="securityBtn" class="btn-indigo" onclick="fetchSecurity()" disabled>Validate Security</button>
-        </div>
-        <div id="securityResults" style="display: none; margin-top: 20px;">
-            <h4 style="color: #dc2626; margin-bottom: 5px;">Orphaned Users (Broken Access)</h4>
-            <div class="table-responsive" style="margin-bottom: 20px;">
-                <table>
-                    <thead>
-                        <tr>
-                            <th>User Name <span class="info-icon has-tooltip" data-tooltip="<strong>Orphaned User:</strong> This user is mapped inside the database, but their master server-level login is broken or missing. The app using this account will FAIL to connect.<br><br><em>Fix:</em> <code>EXEC sp_change_users_login 'Auto_Fix', 'UserName'</code>">?</span></th>
-                            <th>Account Type <span class="info-icon has-tooltip" data-tooltip="SQL Login or Windows Identity.">?</span></th>
-                        </tr>
-                    </thead>
-                    <tbody id="orphanedTableBody"></tbody>
-                </table>
+            <h3>🔐 Post-Restore Security Validator</h3>
+            <p style="color: #64748b; font-size: 13px; margin-top: -10px; margin-bottom: 15px;">Identify broken (orphaned) users and review all db_owner admins.</p>
+            <div class="controls">
+                <select id="dbSecuritySelect" disabled onchange="checkSecurityDB()"><option value="">-- Select a Database --</option></select>
+                <button id="securityBtn" class="btn-indigo" onclick="fetchSecurity()" disabled>Validate Security</button>
             </div>
 
-            <h4 style="color: #0ea5e9; margin-bottom: 5px;">Database Owners (Full Admin Access)</h4>
-            <div class="table-responsive">
-                <table>
-                    <thead>
-                        <tr>
-                            <th>User Name <span class="info-icon has-tooltip" data-tooltip="Users with the <strong>db_owner</strong> role. They can drop tables, delete data, and bypass all permissions inside this specific database. Ensure only authorized users are on this list!">?</span></th>
-                            <th>Account Type <span class="info-icon has-tooltip" data-tooltip="SQL Login or Windows Identity.">?</span></th>
-                        </tr>
-                    </thead>
-                    <tbody id="ownerTableBody"></tbody>
-                </table>
+            <div id="securityResults" style="display: none; margin-top: 20px;">
+                <h4 style="color: #dc2626; margin-bottom: 5px;">Orphaned Users (Broken Access)</h4>
+                <div class="table-responsive" style="margin-bottom: 20px;">
+                    <table>
+                        <thead>
+                            <tr>
+                                <th>User Name <span class="info-icon has-tooltip" data-tooltip="<strong>Orphaned User:</strong> This user is mapped inside the database, but their master server-level login is broken or missing. The app using this account will FAIL to connect.<br><br><em>Fix:</em> <code>EXEC sp_change_users_login 'Auto_Fix', 'UserName'</code>">?</span></th>
+                                <th>Account Type <span class="info-icon has-tooltip" data-tooltip="SQL Login or Windows Identity.">?</span></th>
+                            </tr>
+                        </thead>
+                        <tbody id="orphanedTableBody"></tbody>
+                    </table>
+                </div>
+
+                <h4 style="color: #0ea5e9; margin-bottom: 5px;">Database Owners (Full Admin Access)</h4>
+                <div class="table-responsive">
+                    <table>
+                        <thead>
+                            <tr>
+                                <th>User Name <span class="info-icon has-tooltip" data-tooltip="Users with the <strong>db_owner</strong> role. They can drop tables, delete data, and bypass all permissions inside this specific database. Ensure only authorized users are on this list!">?</span></th>
+                                <th>Account Type <span class="info-icon has-tooltip" data-tooltip="SQL Login or Windows Identity.">?</span></th>
+                            </tr>
+                        </thead>
+                        <tbody id="ownerTableBody"></tbody>
+                    </table>
+                </div>
             </div>
         </div>
     </div>
-</div>
 
-<div id="addServerModal" class="modal">
-    <div class="modal-content">
-        <span class="close-btn" onclick="closeAddServerModal()">&times;</span>
-        <h3 id="modalTitle" style="margin-top: 0; color: #0f172a; margin-bottom: 20px;">➕ Add New Server</h3>
-
-        <div class="form-group">
-            <label>Server Alias (Display Name)</label>
-            <input type="text" id="newAlias" placeholder="e.g. Production_DB_1" required>
-        </div>
-        <div class="form-group">
-            <label>Host (IP or DNS Name)</label>
-            <input type="text" id="newHost" placeholder="e.g. 192.168.1.50" required>
-        </div>
-        <div class="form-group">
-            <label>Port (Optional)</label>
-            <input type="text" id="newPort" placeholder="e.g. 1433">
-        </div>
-        <div class="form-group">
-            <label>SQL Username</label>
-            <input type="text" id="newUser" placeholder="e.g. sa" required>
-        </div>
-        <div class="form-group" style="margin-bottom: 25px;">
-            <label id="passwordLabel">Password</label>
-            <input type="password" id="newPassword" placeholder="••••••••" required>
-        </div>
-
-        <button onclick="submitServer()" style="width: 100%;" id="saveServerBtn" class="btn-success">Save Server</button>
-    </div>
-</div>
-
-<div id="deleteServerModal" class="modal">
-    <div class="modal-content" style="width: 380px; text-align: center; padding: 40px 30px;">
-        <span class="close-btn" onclick="closeDeleteServerModal()">&times;</span>
-        <div style="font-size: 40px; margin-bottom: 10px;">⚠️</div>
-        <h3 style="margin-top: 0; color: #dc2626; margin-bottom: 15px; border: none; padding-bottom: 0;">Confirm Deletion</h3>
-        <p style="color: #475569; font-size: 14px; line-height: 1.5; margin-bottom: 25px;">
-            Are you sure you want to remove <strong id="deleteServerName" style="color: #0f172a; font-size: 15px;"></strong> from the dashboard?
-            <br><br>
-            <span style="color: #ef4444; font-weight: 600;">This action cannot be undone.</span>
-        </p>
-
-        <div style="display: flex; gap: 15px; justify-content: center;">
-            <button class="btn-page" style="flex: 1; padding: 12px; font-weight: 600;" onclick="closeDeleteServerModal()">Cancel</button>
-            <button class="btn-danger" style="flex: 1; padding: 12px; font-weight: 600;" id="confirmDeleteBtn" onclick="executeDeleteServer()">Yes, Delete</button>
+    <div id="addServerModal" class="modal">
+        <div class="modal-content">
+            <span class="close-btn" onclick="closeAddServerModal()">&times;</span>
+            <h3 id="modalTitle" style="margin-top: 0; color: #0f172a; margin-bottom: 20px;">➕ Add New Server</h3>
+            <div class="form-group">
+                <label>Server Alias (Display Name)</label>
+                <input type="text" id="newAlias" placeholder="e.g. Production_DB_1" required>
+            </div>
+            <div class="form-group">
+                <label>Host (IP or DNS Name)</label>
+                <input type="text" id="newHost" placeholder="e.g. 192.168.1.50" required>
+            </div>
+            <div class="form-group">
+                <label>Port (Optional)</label>
+                <input type="text" id="newPort" placeholder="e.g. 1433">
+            </div>
+            <div class="form-group">
+                <label>SQL Username</label>
+                <input type="text" id="newUser" placeholder="e.g. sa" required>
+            </div>
+            <div class="form-group" style="margin-bottom: 25px;">
+                <label id="passwordLabel">Password</label>
+                <input type="password" id="newPassword" placeholder="••••••••" required>
+            </div>
+            <button onclick="submitServer()" style="width: 100%;" id="saveServerBtn" class="btn-success">Save Server</button>
         </div>
     </div>
-</div>
 
-<script>
-    // --- JS Toast Notification Engine ---
-    function showToast(message, type = 'success') {
-        const container = document.getElementById('toastContainer');
-        const toast = document.createElement('div');
-        toast.className = `toast ${type}`;
+    <div id="deleteServerModal" class="modal">
+        <div class="modal-content" style="width: 380px; text-align: center; padding: 40px 30px;">
+            <span class="close-btn" onclick="closeDeleteServerModal()">&times;</span>
+            <div style="font-size: 40px; margin-bottom: 10px;">⚠️</div>
+            <h3 style="margin-top: 0; color: #dc2626; margin-bottom: 15px; border: none; padding-bottom: 0;">Confirm Deletion</h3>
+            <p style="color: #475569; font-size: 14px; line-height: 1.5; margin-bottom: 25px;">
+                Are you sure you want to remove <strong id="deleteServerName" style="color: #0f172a; font-size: 15px;"></strong> from the dashboard? <br><br>
+                <span style="color: #ef4444; font-weight: 600;">This action cannot be undone.</span>
+            </p>
+            <div style="display: flex; gap: 15px; justify-content: center;">
+                <button class="btn-page" style="flex: 1; padding: 12px; font-weight: 600;" onclick="closeDeleteServerModal()">Cancel</button>
+                <button class="btn-danger" style="flex: 1; padding: 12px; font-weight: 600;" id="confirmDeleteBtn" onclick="executeDeleteServer()">Yes, Delete</button>
+            </div>
+        </div>
+    </div>
 
-        let icon = '✅';
-        if (type === 'error') icon = '❌';
-        if (type === 'info') icon = 'ℹ️';
-
-        toast.innerHTML = `<span class="toast-icon">${icon}</span> <span>${message}</span>`;
-        container.appendChild(toast);
-
-        setTimeout(() => toast.classList.add('show'), 10);
-
-        setTimeout(() => {
-            toast.classList.remove('show');
-            setTimeout(() => toast.remove(), 300);
-        }, 3500);
-    }
-
-    // --- Logout Function ---
-    function performLogout(isAuto = false) {
-        if(isAuto) {
-            showToast("Session expired due to inactivity. Logging out...", "info");
+    <script>
+        function showToast(message, type = 'success') {
+            const container = document.getElementById('toastContainer');
+            const toast = document.createElement('div');
+            toast.className = `toast ${type}`;
+            let icon = '✅';
+            if (type === 'error') icon = '❌';
+            if (type === 'info') icon = 'ℹ️';
+            toast.innerHTML = `<span class="toast-icon">${icon}</span> <span>${message}</span>`;
+            container.appendChild(toast);
+            setTimeout(() => toast.classList.add('show'), 10);
+            setTimeout(() => { toast.classList.remove('show'); setTimeout(() => toast.remove(), 300); }, 3500);
         }
 
-        setTimeout(() => {
-            fetch('/api/logout', { method: 'POST' })
-            .then(() => window.location.reload())
-            .catch(() => showToast("Error logging out", "error"));
-        }, isAuto ? 1500 : 0);
-    }
+        function performLogout(isAuto = false) {
+            if(isAuto) { showToast("Session expired due to inactivity. Logging out...", "info"); }
+            setTimeout(() => {
+                fetch('/api/logout', { method: 'POST' })
+                .then(() => window.location.reload())
+                .catch(() => showToast("Error logging out", "error"));
+            }, isAuto ? 1500 : 0);
+        }
 
-    // --- 5-Minute Inactivity Auto-Logout Tracker ---
-    let inactivityTimer;
-    const INACTIVITY_LIMIT_MS = 5 * 60 * 1000;
+        let inactivityTimer;
+        const INACTIVITY_LIMIT_MS = 5 * 60 * 1000;
+        function resetInactivityTimer() {
+            clearTimeout(inactivityTimer);
+            inactivityTimer = setTimeout(() => performLogout(true), INACTIVITY_LIMIT_MS);
+        }
+        window.onload = resetInactivityTimer;
+        document.onmousemove = resetInactivityTimer;
+        document.onkeypress = resetInactivityTimer;
+        document.onmousedown = resetInactivityTimer;
+        document.ontouchstart = resetInactivityTimer;
+        document.onscroll = resetInactivityTimer;
 
-    function resetInactivityTimer() {
-        clearTimeout(inactivityTimer);
-        inactivityTimer = setTimeout(() => performLogout(true), INACTIVITY_LIMIT_MS);
-    }
-
-    window.onload = resetInactivityTimer;
-    document.onmousemove = resetInactivityTimer;
-    document.onkeypress = resetInactivityTimer;
-    document.onmousedown = resetInactivityTimer;
-    document.ontouchstart = resetInactivityTimer;
-    document.onscroll = resetInactivityTimer;
-
-    // --- Global Custom Tooltip Engine ---
-    document.addEventListener('DOMContentLoaded', () => {
-        const globalTooltip = document.getElementById('globalTooltip');
-
-        document.addEventListener('mousemove', function(e) {
-            if (e.target.classList && e.target.classList.contains('has-tooltip')) {
-                globalTooltip.innerHTML = e.target.getAttribute('data-tooltip');
-                globalTooltip.style.opacity = '1';
-                globalTooltip.style.visibility = 'visible';
-
-                let x = e.pageX + 15;
-                let y = e.pageY + 15;
-
-                if (x + 360 > window.innerWidth) {
-                    x = window.innerWidth - 380;
-                }
-
-                globalTooltip.style.left = x + 'px';
-                globalTooltip.style.top = y + 'px';
-            } else {
-                globalTooltip.style.opacity = '0';
-                globalTooltip.style.visibility = 'hidden';
-            }
-        });
-    });
-
-    // --- Global Variables ---
-    let globalIndexData = [];
-    let currentIdxPage = 1;
-    const idxRowsPerPage = 10;
-
-    let isEditingMode = false;
-    let currentEditAlias = "";
-
-    // --- Core Loading ---
-    document.addEventListener("DOMContentLoaded", () => {
-        loadServerDropdown();
-    });
-
-    function loadServerDropdown(autoSelectAlias = null) {
-        fetch('/api/databases')
-            .then(response => response.json())
-            .then(servers => {
-                servers.sort((a, b) => a.localeCompare(b));
-                const select = document.getElementById('serverSelect');
-                select.innerHTML = '<option value="">-- Select a Server --</option>';
-                servers.forEach(server => {
-                    const option = document.createElement('option');
-                    option.value = server;
-                    option.textContent = server;
-                    select.appendChild(option);
-                });
-
-                if(autoSelectAlias) {
-                    select.value = autoSelectAlias;
-                    handleServerSelection();
+        document.addEventListener('DOMContentLoaded', () => {
+            const globalTooltip = document.getElementById('globalTooltip');
+            document.addEventListener('mousemove', function(e) {
+                if (e.target.classList && e.target.classList.contains('has-tooltip')) {
+                    globalTooltip.innerHTML = e.target.getAttribute('data-tooltip');
+                    globalTooltip.style.opacity = '1';
+                    globalTooltip.style.visibility = 'visible';
+                    let x = e.pageX + 15;
+                    let y = e.pageY + 15;
+                    if (x + 360 > window.innerWidth) { x = window.innerWidth - 380; }
+                    globalTooltip.style.left = x + 'px';
+                    globalTooltip.style.top = y + 'px';
+                } else {
+                    globalTooltip.style.opacity = '0';
+                    globalTooltip.style.visibility = 'hidden';
                 }
             });
-    }
-
-    function handleServerSelection() {
-        const selected = document.getElementById('serverSelect').value;
-        const editBtn = document.getElementById('editServerBtn');
-        const delBtn = document.getElementById('deleteServerBtn');
-
-        if (selected) {
-            editBtn.disabled = false;
-            delBtn.disabled = false;
-        } else {
-            editBtn.disabled = true;
-            delBtn.disabled = true;
-        }
-    }
-
-    // --- Add/Edit Modal Logic ---
-    function openAddServerModal(editMode = false) {
-        isEditingMode = editMode;
-        const modalTitle = document.getElementById('modalTitle');
-        const aliasInput = document.getElementById('newAlias');
-        const passLabel = document.getElementById('passwordLabel');
-        const passInput = document.getElementById('newPassword');
-
-        aliasInput.value = '';
-        document.getElementById('newHost').value = '';
-        document.getElementById('newPort').value = '';
-        document.getElementById('newUser').value = '';
-        passInput.value = '';
-        aliasInput.readOnly = false;
-
-        if (editMode) {
-            modalTitle.innerHTML = "✏️ Edit Server";
-            passLabel.innerHTML = "Password (Leave blank to keep current)";
-            passInput.required = false;
-
-            const selectedServer = document.getElementById('serverSelect').value;
-            currentEditAlias = selectedServer;
-            aliasInput.value = selectedServer;
-
-            fetch(`/api/servers/detail?server=${encodeURIComponent(selectedServer)}`)
-                .then(r => r.json())
-                .then(data => {
-                    if(!data.error) {
-                        document.getElementById('newHost').value = data.host || '';
-                        document.getElementById('newPort').value = data.port || '';
-                        document.getElementById('newUser').value = data.user || '';
-                    }
-                });
-
-        } else {
-            modalTitle.innerHTML = "➕ Add New Server";
-            passLabel.innerHTML = "Password";
-            passInput.required = true;
-            currentEditAlias = "";
-        }
-
-        document.getElementById('addServerModal').style.display = 'block';
-    }
-
-    function closeAddServerModal() {
-        document.getElementById('addServerModal').style.display = 'none';
-    }
-
-    function submitServer() {
-        const alias = document.getElementById('newAlias').value.trim();
-        const host = document.getElementById('newHost').value.trim();
-        const port = document.getElementById('newPort').value.trim();
-        const user = document.getElementById('newUser').value.trim();
-        const password = document.getElementById('newPassword').value.trim();
-
-        if (!alias || !host || !user) return showToast("Alias, Host, and Username are required fields.", "error");
-        if (!isEditingMode && !password) return showToast("Password is required for new servers.", "error");
-
-        const btn = document.getElementById('saveServerBtn');
-        btn.innerHTML = '<span class="spinner spinner-dark" style="border-top-color: white; border-color: rgba(255,255,255,0.3);"></span> Saving...';
-        btn.disabled = true;
-
-        const serverData = { alias, host, port, type: "sqlserver", user, password };
-        if (isEditingMode) { serverData.original_alias = currentEditAlias; }
-
-        const endpoint = isEditingMode ? '/api/servers/edit' : '/api/servers/add';
-
-        fetch(endpoint, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(serverData) })
-        .then(res => res.json())
-        .then(data => {
-            btn.innerHTML = "Save Server"; btn.disabled = false;
-            if (data.error) { showToast(data.error, "error"); }
-            else {
-                showToast(data.message, "success");
-                closeAddServerModal();
-                loadServerDropdown(alias);
-            }
-        }).catch(err => { btn.innerHTML = "Save Server"; btn.disabled = false; showToast("Failed to reach backend API.", "error"); });
-    }
-
-    // --- Delete Confirmation Modal Logic ---
-    function openDeleteServerModal() {
-        const alias = document.getElementById('serverSelect').value;
-        if (!alias) return;
-
-        document.getElementById('deleteServerName').textContent = `'${alias}'`;
-        document.getElementById('deleteServerModal').style.display = 'block';
-    }
-
-    function closeDeleteServerModal() {
-        document.getElementById('deleteServerModal').style.display = 'none';
-    }
-
-    function executeDeleteServer() {
-        const alias = document.getElementById('serverSelect').value;
-        if (!alias) return;
-
-        const btn = document.getElementById('confirmDeleteBtn');
-        btn.innerHTML = '<span class="spinner spinner-dark" style="border-top-color: white; border-color: rgba(255,255,255,0.3);"></span> Deleting...';
-        btn.disabled = true;
-
-        fetch('/api/servers/delete', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ alias: alias })
-        })
-        .then(res => res.json())
-        .then(data => {
-            btn.innerHTML = "Yes, Delete";
-            btn.disabled = false;
-            closeDeleteServerModal();
-
-            if (data.error) {
-                showToast(data.error, "error");
-            } else {
-                showToast(data.message, "success");
-                document.getElementById('editServerBtn').disabled = true;
-                document.getElementById('deleteServerBtn').disabled = true;
-                loadServerDropdown();
-            }
-        })
-        .catch(err => {
-            btn.innerHTML = "Yes, Delete";
-            btn.disabled = false;
-            closeDeleteServerModal();
-            showToast("Failed to reach backend API.", "error");
         });
-    }
 
-    // --- Tool Enablers ---
-    function setToolsEnabled(enabled) {
-        document.getElementById('dbIndexSelect').disabled = !enabled; document.getElementById('dbSecuritySelect').disabled = !enabled;
-        document.getElementById('indexBtn').disabled = true; document.getElementById('securityBtn').disabled = true;
-    }
+        let globalIndexData = [];
+        let currentIdxPage = 1;
+        const idxRowsPerPage = 10;
+        let isEditingMode = false;
+        let currentEditAlias = "";
 
-    function checkSecurityDB() {
-        const db = document.getElementById('dbSecuritySelect').value;
-        document.getElementById('securityBtn').disabled = !db;
-    }
+        document.addEventListener("DOMContentLoaded", () => { loadServerDropdown(); });
 
-    // --- Main Metrics Fetch ---
-    function fetchMetrics() {
-        const selectedServer = document.getElementById('serverSelect').value;
-        if (!selectedServer) return showToast("Please select a server first.", "error");
+        function loadServerDropdown(autoSelectAlias = null) {
+            fetch('/api/databases')
+                .then(response => response.json())
+                .then(servers => {
+                    servers.sort((a, b) => a.localeCompare(b));
+                    const select = document.getElementById('serverSelect');
+                    select.innerHTML = '<option value="">-- Select a Server --</option>';
+                    servers.forEach(server => {
+                        const option = document.createElement('option');
+                        option.value = server;
+                        option.textContent = server;
+                        select.appendChild(option);
+                    });
+                    if(autoSelectAlias) { select.value = autoSelectAlias; handleServerSelection(); }
+                });
+        }
 
-        window.scrollTo({ top: 0, behavior: 'smooth' });
+        function handleServerSelection() {
+            const selected = document.getElementById('serverSelect').value;
+            const editBtn = document.getElementById('editServerBtn');
+            const delBtn = document.getElementById('deleteServerBtn');
+            if (selected) { editBtn.disabled = false; delBtn.disabled = false; }
+            else { editBtn.disabled = true; delBtn.disabled = true; }
+        }
 
-        const btn = document.getElementById('refreshBtn');
-        btn.innerHTML = '<span class="spinner"></span> Refreshing...'; btn.disabled = true;
-        setToolsEnabled(false);
+        function openAddServerModal(editMode = false) {
+            isEditingMode = editMode;
+            const modalTitle = document.getElementById('modalTitle');
+            const aliasInput = document.getElementById('newAlias');
+            const passLabel = document.getElementById('passwordLabel');
+            const passInput = document.getElementById('newPassword');
 
-        const tableSelect = document.getElementById('tableIndexSelect');
-        tableSelect.innerHTML = '<option value="all">-- All Tables (Slow) --</option>'; tableSelect.disabled = true;
+            aliasInput.value = '';
+            document.getElementById('newHost').value = '';
+            document.getElementById('newPort').value = '';
+            document.getElementById('newUser').value = '';
+            passInput.value = '';
+            aliasInput.readOnly = false;
 
-        document.getElementById('results').style.display = 'block';
-        document.getElementById('alertBox').style.display = 'none'; document.getElementById('longQueriesContainer').style.display = 'none';
-        document.getElementById('failedJobsContainer').style.display = 'none'; document.getElementById('agContainer').style.display = 'none';
+            if (editMode) {
+                modalTitle.innerHTML = "✏️ Edit Server";
+                passLabel.innerHTML = "Password (Leave blank to keep current)";
+                passInput.required = false;
+                const selectedServer = document.getElementById('serverSelect').value;
+                currentEditAlias = selectedServer;
+                aliasInput.value = selectedServer;
 
-        document.getElementById('indexResults').style.display = 'none';
-        document.getElementById('indexTableBody').innerHTML = '';
-        document.getElementById('indexPagination').innerHTML = '';
+                fetch(`/api/servers/detail?server=${encodeURIComponent(selectedServer)}`)
+                    .then(r => r.json())
+                    .then(data => {
+                        if(!data.error) {
+                            document.getElementById('newHost').value = data.host || '';
+                            document.getElementById('newPort').value = data.port || '';
+                            document.getElementById('newUser').value = data.user || '';
+                        }
+                    });
+            } else {
+                modalTitle.innerHTML = "➕ Add New Server";
+                passLabel.innerHTML = "Password";
+                passInput.required = true;
+                currentEditAlias = "";
+            }
+            document.getElementById('addServerModal').style.display = 'block';
+        }
 
-        document.getElementById('securityResults').style.display = 'none';
-        document.getElementById('orphanedTableBody').innerHTML = '';
-        document.getElementById('ownerTableBody').innerHTML = '';
+        function closeAddServerModal() { document.getElementById('addServerModal').style.display = 'none'; }
 
-        const sysadminBody = document.getElementById('sysadminBody'); const restoreBody = document.getElementById('restoreBody');
-        sysadminBody.innerHTML = "<tr><td colspan='3' class='text-center' style='padding: 20px; color: #64748b;'><span class='spinner spinner-dark'></span> Refreshing...</td></tr>";
-        restoreBody.innerHTML = "<tr><td colspan='3' class='text-center' style='padding: 20px; color: #64748b;'><span class='spinner spinner-dark'></span> Refreshing...</td></tr>";
+        function submitServer() {
+            const alias = document.getElementById('newAlias').value.trim();
+            const host = document.getElementById('newHost').value.trim();
+            const port = document.getElementById('newPort').value.trim();
+            const user = document.getElementById('newUser').value.trim();
+            const password = document.getElementById('newPassword').value.trim();
 
-        const dbTbody = document.getElementById('dbTableBody'); const driveTbody = document.getElementById('driveTableBody');
-        dbTbody.innerHTML = "<tr><td colspan='7' class='text-center' style='padding: 30px; color: #64748b;'><span class='spinner spinner-dark'></span> Gathering database metrics...</td></tr>";
-        driveTbody.innerHTML = "<tr><td colspan='4' class='text-center' style='padding: 30px; color: #64748b;'><span class='spinner spinner-dark'></span> Scanning server drives...</td></tr>";
+            if (!alias || !host || !user) return showToast("Alias, Host, and Username are required fields.", "error");
+            if (!isEditingMode && !password) return showToast("Password is required for new servers.", "error");
 
-        fetch(`/api/metrics?server=${selectedServer}`)
-            .then(response => response.json())
+            const btn = document.getElementById('saveServerBtn');
+            btn.innerHTML = '<span class="spinner spinner-dark" style="border-top-color: white; border-color: rgba(255,255,255,0.3);"></span> Saving...';
+            btn.disabled = true;
+
+            const serverData = { alias, host, port, type: "sqlserver", user, password };
+            if (isEditingMode) { serverData.original_alias = currentEditAlias; }
+
+            const endpoint = isEditingMode ? '/api/servers/edit' : '/api/servers/add';
+
+            fetch(endpoint, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(serverData)
+            })
+            .then(res => res.json())
             .then(data => {
-                btn.innerHTML = "Refresh Dashboard"; btn.disabled = false;
-
-                if (data.error) {
-                    if(data.error.includes("Unauthorized")) { window.location.reload(); return; }
-                    dbTbody.innerHTML = `<tr><td colspan='7' style="color:red; text-align:center;">Error: ${data.error}</td></tr>`;
-                    sysadminBody.innerHTML = ""; restoreBody.innerHTML = ""; driveTbody.innerHTML = ""; return;
+                btn.innerHTML = "Save Server";
+                btn.disabled = false;
+                if (data.error) { showToast(data.error, "error"); }
+                else {
+                    showToast(data.message, "success");
+                    closeAddServerModal();
+                    loadServerDropdown(alias);
                 }
+            }).catch(err => {
+                btn.innerHTML = "Save Server";
+                btn.disabled = false;
+                showToast("Failed to reach backend API.", "error");
+            });
+        }
 
-                const alertBox = document.getElementById('alertBox'); const alertTitle = document.getElementById('alertTitle'); const alertList = document.getElementById('serverAlerts');
-                alertList.innerHTML = "";
-                if (data.server_level_alerts && data.server_level_alerts.length > 0) {
-                    alertBox.style.display = 'block';
-                    if (data.server_level_alerts[0].includes("System is entirely healthy")) { alertBox.className = "alerts alerts-healthy"; alertTitle.innerHTML = "✅ Server Health Status"; }
-                    else { alertBox.className = "alerts"; alertTitle.innerHTML = "⚠️ Critical Server Alerts"; }
-                    data.server_level_alerts.forEach(alert => { let li = document.createElement('li'); li.textContent = alert; alertList.appendChild(li); });
+        function openDeleteServerModal() {
+            const alias = document.getElementById('serverSelect').value;
+            if (!alias) return;
+            document.getElementById('deleteServerName').textContent = `'${alias}'`;
+            document.getElementById('deleteServerModal').style.display = 'block';
+        }
+
+        function closeDeleteServerModal() { document.getElementById('deleteServerModal').style.display = 'none'; }
+
+        function executeDeleteServer() {
+            const alias = document.getElementById('serverSelect').value;
+            if (!alias) return;
+
+            const btn = document.getElementById('confirmDeleteBtn');
+            btn.innerHTML = '<span class="spinner spinner-dark" style="border-top-color: white; border-color: rgba(255,255,255,0.3);"></span> Deleting...';
+            btn.disabled = true;
+
+            fetch('/api/servers/delete', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ alias: alias })
+            })
+            .then(res => res.json())
+            .then(data => {
+                btn.innerHTML = "Yes, Delete";
+                btn.disabled = false;
+                closeDeleteServerModal();
+                if (data.error) { showToast(data.error, "error"); }
+                else {
+                    showToast(data.message, "success");
+                    document.getElementById('editServerBtn').disabled = true;
+                    document.getElementById('deleteServerBtn').disabled = true;
+                    loadServerDropdown();
                 }
-
-                sysadminBody.innerHTML = "";
-                if (data.sysadmins && data.sysadmins.length > 0) {
-                    data.sysadmins.forEach(sa => {
-                        const statusBadge = sa.is_disabled ? '<span class="badge badge-neutral">Disabled</span>' : '<span class="badge badge-success">Active</span>';
-                        sysadminBody.innerHTML += `<tr><td><strong>${sa.login_name}</strong></td><td><span class="badge badge-indigo">${sa.login_type}</span></td><td class="text-center">${statusBadge}</td></tr>`;
-                    });
-                } else { sysadminBody.innerHTML = `<tr><td colspan='3' class="text-center" style="color: #64748b;">No active sysadmins found.</td></tr>`; }
-
-                restoreBody.innerHTML = "";
-                if (data.recent_restores && data.recent_restores.length > 0) {
-                    data.recent_restores.forEach(rr => {
-                        restoreBody.innerHTML += `<tr><td><strong>${rr.database}</strong></td><td>${rr.restored_by}</td><td class="text-right">${rr.restore_date}</td></tr>`;
-                    });
-                } else { restoreBody.innerHTML = `<tr><td colspan='3' class="text-center" style="color: #64748b;">No databases restored in the last 7 days.</td></tr>`; }
-
-                const lqContainer = document.getElementById('longQueriesContainer'); const lqTbody = document.getElementById('longQueriesBody'); lqTbody.innerHTML = "";
-                if (data.long_queries && data.long_queries.length > 0) {
-                    lqContainer.style.display = 'block';
-                    data.long_queries.forEach(q => {
-                        lqTbody.innerHTML += `<tr><td><strong>${q.session_id}</strong></td><td>${q.database}</td><td class="text-right"><span class="badge badge-danger">${q.seconds.toLocaleString()}s</span></td><td><span class="sql-code">${q.query_text}</span></td></tr>`;
-                    });
-                }
-
-                const fjContainer = document.getElementById('failedJobsContainer'); const fjTbody = document.getElementById('failedJobsBody'); fjTbody.innerHTML = "";
-                if (data.failed_jobs && data.failed_jobs.length > 0) {
-                    fjContainer.style.display = 'block';
-                    data.failed_jobs.forEach(job => {
-                        fjTbody.innerHTML += `<tr><td><strong>${job.job_name}</strong></td><td>${job.fail_date}</td><td><span class="error-code">${job.error_message}</span></td></tr>`;
-                    });
-                }
-
-                const agContainer = document.getElementById('agContainer'); const agTbody = document.getElementById('agTableBody'); agTbody.innerHTML = "";
-                if (data.ag_sync && data.ag_sync.length > 0) {
-                    agContainer.style.display = 'block';
-                    data.ag_sync.forEach(ag => {
-                        let stateBadge = ag.state === 'HEALTHY' || ag.state === 'SYNCHRONIZED' || ag.state === 'SYNCHRONIZING' ? `<span class="badge badge-success">${ag.state}</span>` : `<span class="badge badge-danger">${ag.state}</span>`;
-                        let logBadge = ag.log_queue_mb > 100 ? `<span class="badge badge-danger">${ag.log_queue_mb} MB</span>` : `<span style="color: #10b981; font-weight: bold;">${ag.log_queue_mb} MB</span>`;
-                        let redoBadge = ag.redo_queue_mb > 100 ? `<span class="badge badge-danger">${ag.redo_queue_mb} MB</span>` : `<span style="color: #10b981; font-weight: bold;">${ag.redo_queue_mb} MB</span>`;
-                        agTbody.innerHTML += `<tr><td><strong>${ag.database}</strong></td><td>${ag.secondary}</td><td class="text-center">${stateBadge}</td><td class="text-right">${logBadge}</td><td class="text-right">${redoBadge}</td></tr>`;
-                    });
-                }
-
-                driveTbody.innerHTML = "";
-                data.drives.forEach(drive => {
-                    let driveBadge = drive.free_percent < 10.0 ? `<span class="badge badge-danger">${drive.free_percent}%</span>` : `<span class="badge badge-success">${drive.free_percent}%</span>`;
-                    driveTbody.innerHTML += `<tr><td><strong>${drive.letter}</strong></td><td class="text-right">${drive.free_gb.toLocaleString(undefined, {minimumFractionDigits: 2})} GB</td><td class="text-right">${drive.total_gb.toLocaleString(undefined, {minimumFractionDigits: 2})} GB</td><td class="text-right">${driveBadge}</td></tr>`;
-                });
-
-                dbTbody.innerHTML = "";
-                data.databases.forEach(db => {
-                    let statusBadge = (db.status.toUpperCase() === 'ONLINE') ? '<span class="badge badge-success">ONLINE</span>' : `<span class="badge badge-danger">${db.status}</span>`;
-                    let backupBadge = db.backup_status === 'OK' ? '<span class="badge badge-success">OK</span>' : (db.backup_status === 'MISSING' ? '<span class="badge badge-danger">MISSING</span>' : `<span class="badge badge-warning">${db.backup_status}</span>`);
-                    let autoShrinkBadge = db.auto_shrink ? '<span class="badge badge-warning">ON</span>' : '<span class="badge badge-neutral">OFF</span>';
-                    let logWaitBadge = db.log_wait === 'NOTHING' ? '<span class="badge badge-neutral">NOTHING</span>' : (db.log_wait === 'LOG_BACKUP' ? '<span class="badge badge-warning">LOG_BACKUP</span>' : (db.log_wait === 'AVAILABILITY_REPLICA' ? '<span class="badge badge-danger">AG_REPLICA</span>' : `<span class="badge badge-warning">${db.log_wait}</span>`));
-                    let logPct = db.log_used_pct || 0;
-                    let barColor = logPct > 85 ? '#ef4444' : (logPct > 50 ? '#f59e0b' : '#10b981'); let textColor = logPct > 50 ? '#ffffff' : '#334155';
-                    let logBarHtml = `<div class="progress-bar-container"><div class="progress-bar-fill" style="background: ${barColor}; width: ${logPct}%;"></div><div class="progress-bar-text" style="color: ${textColor};">${logPct}%</div></div>`;
-                    dbTbody.innerHTML += `<tr><td><strong>${db.name}</strong></td><td class="text-center">${statusBadge}</td><td class="text-right">${db.size_mb.toLocaleString(undefined, {minimumFractionDigits: 2})} MB</td><td class="text-center">${backupBadge}</td><td class="text-center">${autoShrinkBadge}</td><td class="text-center">${logBarHtml}</td><td class="text-center">${logWaitBadge}</td></tr>`;
-                });
-
-                const dbIndexSelect = document.getElementById('dbIndexSelect'); const dbSecuritySelect = document.getElementById('dbSecuritySelect');
-                dbIndexSelect.innerHTML = '<option value="">-- Select a Database --</option>'; dbSecuritySelect.innerHTML = '<option value="">-- Select a Database --</option>';
-                const sortedDatabases = data.databases.sort((a, b) => a.name.localeCompare(b.name));
-                sortedDatabases.forEach(db => {
-                    dbIndexSelect.innerHTML += `<option value="${db.name}">${db.name}</option>`; dbSecuritySelect.innerHTML += `<option value="${db.name}">${db.name}</option>`;
-                });
-                setToolsEnabled(true);
             })
             .catch(err => {
-                btn.innerHTML = "Refresh Dashboard"; btn.disabled = false;
-                dbTbody.innerHTML = `<tr><td colspan='7' class="text-center" style="color:red;">Failed to connect to backend.</td></tr>`;
-                console.error(err); setToolsEnabled(false);
+                btn.innerHTML = "Yes, Delete";
+                btn.disabled = false;
+                closeDeleteServerModal();
+                showToast("Failed to reach backend API.", "error");
             });
-    }
+        }
 
-    function fetchTablesForIndex() {
-        const selectedServer = document.getElementById('serverSelect').value; const selectedDB = document.getElementById('dbIndexSelect').value;
-        const tableSelect = document.getElementById('tableIndexSelect'); const scanBtn = document.getElementById('indexBtn');
-        tableSelect.innerHTML = '<option value="all">-- All Tables (Slow) --</option>'; tableSelect.disabled = true;
+        function setToolsEnabled(enabled) {
+            document.getElementById('dbIndexSelect').disabled = !enabled;
+            document.getElementById('dbSecuritySelect').disabled = !enabled;
+            document.getElementById('indexBtn').disabled = true;
+            document.getElementById('securityBtn').disabled = true;
+        }
 
-        if (!selectedServer || !selectedDB) { scanBtn.disabled = true; scanBtn.innerHTML = "Scan Indexes"; return; }
-        scanBtn.innerHTML = '<span class="spinner"></span> Loading Tables...'; scanBtn.disabled = true;
+        function checkSecurityDB() {
+            const db = document.getElementById('dbSecuritySelect').value;
+            document.getElementById('securityBtn').disabled = !db;
+        }
 
-        fetch(`/api/tables?server=${selectedServer}&db=${selectedDB}`).then(r => r.json()).then(data => {
-                if (data.tables) { data.tables.forEach(t => { tableSelect.innerHTML += `<option value="${t}">${t}</option>`; }); tableSelect.disabled = false; }
+        function fetchMetrics() {
+            const selectedServer = document.getElementById('serverSelect').value;
+            if (!selectedServer) return showToast("Please select a server first.", "error");
+
+            window.scrollTo({ top: 0, behavior: 'smooth' });
+
+            const btn = document.getElementById('refreshBtn');
+            btn.innerHTML = '<span class="spinner"></span> Refreshing...';
+            btn.disabled = true;
+
+            setToolsEnabled(false);
+            const tableSelect = document.getElementById('tableIndexSelect');
+            tableSelect.innerHTML = '<option value="all">-- All Tables (Slow) --</option>';
+            tableSelect.disabled = true;
+
+            document.getElementById('results').style.display = 'block';
+            document.getElementById('alertBox').style.display = 'none';
+            document.getElementById('longQueriesContainer').style.display = 'none';
+            document.getElementById('failedJobsContainer').style.display = 'none';
+            document.getElementById('agContainer').style.display = 'none';
+            document.getElementById('indexResults').style.display = 'none';
+            document.getElementById('indexTableBody').innerHTML = '';
+            document.getElementById('indexPagination').innerHTML = '';
+            document.getElementById('securityResults').style.display = 'none';
+            document.getElementById('orphanedTableBody').innerHTML = '';
+            document.getElementById('ownerTableBody').innerHTML = '';
+
+            document.getElementById('waitStatsBody').innerHTML = "<tr><td colspan='3' class='text-center' style='padding: 20px; color: #64748b;'><span class='spinner spinner-dark'></span> Loading waits...</td></tr>";
+            document.getElementById('tempdbBody').innerHTML = "<tr><td colspan='5' class='text-center' style='padding: 20px; color: #64748b;'><span class='spinner spinner-dark'></span> Checking TempDB...</td></tr>";
+            document.getElementById('corruptionContainer').style.display = 'none';
+            document.getElementById('corruptionBody').innerHTML = "";
+
+            const sysadminBody = document.getElementById('sysadminBody');
+            const restoreBody = document.getElementById('restoreBody');
+            sysadminBody.innerHTML = "<tr><td colspan='3' class='text-center' style='padding: 20px; color: #64748b;'><span class='spinner spinner-dark'></span> Refreshing...</td></tr>";
+            restoreBody.innerHTML = "<tr><td colspan='3' class='text-center' style='padding: 20px; color: #64748b;'><span class='spinner spinner-dark'></span> Refreshing...</td></tr>";
+
+            const dbTbody = document.getElementById('dbTableBody');
+            const driveTbody = document.getElementById('driveTableBody');
+            dbTbody.innerHTML = "<tr><td colspan='7' class='text-center' style='padding: 30px; color: #64748b;'><span class='spinner spinner-dark'></span> Gathering database metrics...</td></tr>";
+            driveTbody.innerHTML = "<tr><td colspan='4' class='text-center' style='padding: 30px; color: #64748b;'><span class='spinner spinner-dark'></span> Scanning server drives...</td></tr>";
+
+            fetch(`/api/metrics?server=${selectedServer}`)
+                .then(response => response.json())
+                .then(data => {
+                    btn.innerHTML = "Refresh Dashboard";
+                    btn.disabled = false;
+
+                    if (data.error) {
+                        if(data.error.includes("Unauthorized")) { window.location.reload(); return; }
+                        dbTbody.innerHTML = `<tr><td colspan='7' style="color:red; text-align:center;">Error: ${data.error}</td></tr>`;
+                        sysadminBody.innerHTML = ""; restoreBody.innerHTML = ""; driveTbody.innerHTML = ""; return;
+                    }
+
+                    const alertBox = document.getElementById('alertBox');
+                    const alertTitle = document.getElementById('alertTitle');
+                    const alertList = document.getElementById('serverAlerts');
+                    alertList.innerHTML = "";
+
+                    if (data.server_level_alerts && data.server_level_alerts.length > 0) {
+                        alertBox.style.display = 'block';
+                        if (data.server_level_alerts[0].includes("System is entirely healthy")) {
+                            alertBox.className = "alerts alerts-healthy";
+                            alertTitle.innerHTML = "✅ Server Health Status";
+                        } else {
+                            alertBox.className = "alerts";
+                            alertTitle.innerHTML = "⚠️ Critical Server Alerts";
+                        }
+                        data.server_level_alerts.forEach(alert => {
+                            let li = document.createElement('li');
+                            li.textContent = alert;
+                            alertList.appendChild(li);
+                        });
+                    }
+
+                    // --- NEW: CPU ---
+                    const cpuVal = data.cpu_stats.sql_cpu || 0;
+                    document.getElementById('sqlCpuValue').innerText = cpuVal + '%';
+                    const cpuBar = document.getElementById('cpuProgressBar');
+                    cpuBar.style.width = cpuVal + '%';
+                    cpuBar.style.background = cpuVal > 85 ? '#ef4444' : (cpuVal > 60 ? '#f59e0b' : '#3b82f6');
+
+                    // --- NEW: WAIT STATS ---
+                    const waitTbody = document.getElementById('waitStatsBody');
+                    waitTbody.innerHTML = "";
+                    if (data.wait_stats && data.wait_stats.length > 0) {
+                        data.wait_stats.forEach(w => {
+                            let pctBadge = w.percentage > 40 ? `<span class="badge badge-danger">${w.percentage}%</span>` : `<span class="badge badge-neutral">${w.percentage}%</span>`;
+                            waitTbody.innerHTML += `<tr><td><strong>${w.wait_type}</strong></td><td class="text-right">${w.wait_time_sec.toLocaleString()}</td><td class="text-right">${pctBadge}</td></tr>`;
+                        });
+                    } else {
+                        waitTbody.innerHTML = `<tr><td colspan='3' class="text-center" style="color: #10b981; font-weight:bold;">No significant wait bottlenecks detected.</td></tr>`;
+                    }
+
+                    // --- NEW: TEMPDB ---
+                    const tdbTbody = document.getElementById('tempdbBody');
+                    const tdb = data.tempdb_health;
+                    let contentionBadge = tdb.contention_tasks > 0 ? `<span class="badge badge-danger">${tdb.contention_tasks} Tasks Blocked</span>` : `<span class="badge badge-success">Healthy (0)</span>`;
+                    tdbTbody.innerHTML = `<tr>
+                        <td class="text-right">${tdb.user_mb.toLocaleString(undefined, {minimumFractionDigits: 2})}</td>
+                        <td class="text-right">${tdb.internal_mb.toLocaleString(undefined, {minimumFractionDigits: 2})}</td>
+                        <td class="text-right">${tdb.version_mb.toLocaleString(undefined, {minimumFractionDigits: 2})}</td>
+                        <td class="text-right">${tdb.free_mb.toLocaleString(undefined, {minimumFractionDigits: 2})}</td>
+                        <td class="text-center">${contentionBadge}</td>
+                    </tr>`;
+
+                    // --- NEW: CORRUPTION ---
+                    const corrContainer = document.getElementById('corruptionContainer');
+                    const corrTbody = document.getElementById('corruptionBody');
+                    if (data.suspect_pages && data.suspect_pages.length > 0) {
+                        corrContainer.style.display = 'block';
+                        data.suspect_pages.forEach(p => {
+                            let errDesc = p.event_type === 1 ? 'Hardware Error (823/824)' : (p.event_type === 2 ? 'Bad Checksum' : 'Torn Page');
+                            corrTbody.innerHTML += `<tr><td><strong>${p.db_name}</strong></td><td>File: ${p.file_id}</td><td>Page: ${p.page_id}</td><td><span class="badge badge-danger">${errDesc}</span></td></tr>`;
+                        });
+                    }
+
+                    sysadminBody.innerHTML = "";
+                    if (data.sysadmins && data.sysadmins.length > 0) {
+                        data.sysadmins.forEach(sa => {
+                            const statusBadge = sa.is_disabled ? '<span class="badge badge-neutral">Disabled</span>' : '<span class="badge badge-success">Active</span>';
+                            sysadminBody.innerHTML += `<tr><td><strong>${sa.login_name}</strong></td><td><span class="badge badge-indigo">${sa.login_type}</span></td><td class="text-center">${statusBadge}</td></tr>`;
+                        });
+                    } else { sysadminBody.innerHTML = `<tr><td colspan='3' class="text-center" style="color: #64748b;">No active sysadmins found.</td></tr>`; }
+
+                    restoreBody.innerHTML = "";
+                    if (data.recent_restores && data.recent_restores.length > 0) {
+                        data.recent_restores.forEach(rr => {
+                            restoreBody.innerHTML += `<tr><td><strong>${rr.database}</strong></td><td>${rr.restored_by}</td><td class="text-right">${rr.restore_date}</td></tr>`;
+                        });
+                    } else { restoreBody.innerHTML = `<tr><td colspan='3' class="text-center" style="color: #64748b;">No databases restored in the last 7 days.</td></tr>`; }
+
+                    const lqContainer = document.getElementById('longQueriesContainer');
+                    const lqTbody = document.getElementById('longQueriesBody');
+                    lqTbody.innerHTML = "";
+                    if (data.long_queries && data.long_queries.length > 0) {
+                        lqContainer.style.display = 'block';
+                        data.long_queries.forEach(q => {
+                            lqTbody.innerHTML += `<tr><td><strong>${q.session_id}</strong></td><td>${q.database}</td><td class="text-right"><span class="badge badge-danger">${q.seconds.toLocaleString()}s</span></td><td><span class="sql-code">${q.query_text}</span></td></tr>`;
+                        });
+                    }
+
+                    const fjContainer = document.getElementById('failedJobsContainer');
+                    const fjTbody = document.getElementById('failedJobsBody');
+                    fjTbody.innerHTML = "";
+                    if (data.failed_jobs && data.failed_jobs.length > 0) {
+                        fjContainer.style.display = 'block';
+                        data.failed_jobs.forEach(job => {
+                            fjTbody.innerHTML += `<tr><td><strong>${job.job_name}</strong></td><td>${job.fail_date}</td><td><span class="error-code">${job.error_message}</span></td></tr>`;
+                        });
+                    }
+
+                    const agContainer = document.getElementById('agContainer');
+                    const agTbody = document.getElementById('agTableBody');
+                    agTbody.innerHTML = "";
+                    if (data.ag_sync && data.ag_sync.length > 0) {
+                        agContainer.style.display = 'block';
+                        data.ag_sync.forEach(ag => {
+                            let stateBadge = ag.state === 'HEALTHY' || ag.state === 'SYNCHRONIZED' || ag.state === 'SYNCHRONIZING' ? `<span class="badge badge-success">${ag.state}</span>` : `<span class="badge badge-danger">${ag.state}</span>`;
+                            let logBadge = ag.log_queue_mb > 100 ? `<span class="badge badge-danger">${ag.log_queue_mb} MB</span>` : `<span style="color: #10b981; font-weight: bold;">${ag.log_queue_mb} MB</span>`;
+                            let redoBadge = ag.redo_queue_mb > 100 ? `<span class="badge badge-danger">${ag.redo_queue_mb} MB</span>` : `<span style="color: #10b981; font-weight: bold;">${ag.redo_queue_mb} MB</span>`;
+                            agTbody.innerHTML += `<tr><td><strong>${ag.database}</strong></td><td>${ag.secondary}</td><td class="text-center">${stateBadge}</td><td class="text-right">${logBadge}</td><td class="text-right">${redoBadge}</td></tr>`;
+                        });
+                    }
+
+                    driveTbody.innerHTML = "";
+                    data.drives.forEach(drive => {
+                        let driveBadge = drive.free_percent < 10.0 ? `<span class="badge badge-danger">${drive.free_percent}%</span>` : `<span class="badge badge-success">${drive.free_percent}%</span>`;
+                        driveTbody.innerHTML += `<tr><td><strong>${drive.letter}</strong></td><td class="text-right">${drive.free_gb.toLocaleString(undefined, {minimumFractionDigits: 2})} GB</td><td class="text-right">${drive.total_gb.toLocaleString(undefined, {minimumFractionDigits: 2})} GB</td><td class="text-right">${driveBadge}</td></tr>`;
+                    });
+
+                    dbTbody.innerHTML = "";
+                    data.databases.forEach(db => {
+                        let statusBadge = (db.status.toUpperCase() === 'ONLINE') ? '<span class="badge badge-success">ONLINE</span>' : `<span class="badge badge-danger">${db.status}</span>`;
+                        let backupBadge = db.backup_status === 'OK' ? '<span class="badge badge-success">OK</span>' : (db.backup_status === 'MISSING' ? '<span class="badge badge-danger">MISSING</span>' : `<span class="badge badge-warning">${db.backup_status}</span>`);
+                        let autoShrinkBadge = db.auto_shrink ? '<span class="badge badge-warning">ON</span>' : '<span class="badge badge-neutral">OFF</span>';
+                        let logWaitBadge = db.log_wait === 'NOTHING' ? '<span class="badge badge-neutral">NOTHING</span>' : (db.log_wait === 'LOG_BACKUP' ? '<span class="badge badge-warning">LOG_BACKUP</span>' : (db.log_wait === 'AVAILABILITY_REPLICA' ? '<span class="badge badge-danger">AG_REPLICA</span>' : `<span class="badge badge-warning">${db.log_wait}</span>`));
+                        let logPct = db.log_used_pct || 0;
+                        let barColor = logPct > 85 ? '#ef4444' : (logPct > 50 ? '#f59e0b' : '#10b981');
+                        let textColor = logPct > 50 ? '#ffffff' : '#334155';
+                        let logBarHtml = `<div class="progress-bar-container"><div class="progress-bar-fill" style="background: ${barColor}; width: ${logPct}%;"></div><div class="progress-bar-text" style="color: ${textColor};">${logPct}%</div></div>`;
+                        dbTbody.innerHTML += `<tr><td><strong>${db.name}</strong></td><td class="text-center">${statusBadge}</td><td class="text-right">${db.size_mb.toLocaleString(undefined, {minimumFractionDigits: 2})} MB</td><td class="text-center">${backupBadge}</td><td class="text-center">${autoShrinkBadge}</td><td class="text-center">${logBarHtml}</td><td class="text-center">${logWaitBadge}</td></tr>`;
+                    });
+
+                    const dbIndexSelect = document.getElementById('dbIndexSelect');
+                    const dbSecuritySelect = document.getElementById('dbSecuritySelect');
+                    dbIndexSelect.innerHTML = '<option value="">-- Select a Database --</option>';
+                    dbSecuritySelect.innerHTML = '<option value="">-- Select a Database --</option>';
+
+                    const sortedDatabases = data.databases.sort((a, b) => a.name.localeCompare(b.name));
+                    sortedDatabases.forEach(db => {
+                        dbIndexSelect.innerHTML += `<option value="${db.name}">${db.name}</option>`;
+                        dbSecuritySelect.innerHTML += `<option value="${db.name}">${db.name}</option>`;
+                    });
+                    setToolsEnabled(true);
+                })
+                .catch(err => {
+                    btn.innerHTML = "Refresh Dashboard";
+                    btn.disabled = false;
+                    dbTbody.innerHTML = `<tr><td colspan='7' class="text-center" style="color:red;">Failed to connect to backend.</td></tr>`;
+                    console.error(err);
+                    setToolsEnabled(false);
+                });
+        }
+
+        function fetchTablesForIndex() {
+            const selectedServer = document.getElementById('serverSelect').value;
+            const selectedDB = document.getElementById('dbIndexSelect').value;
+            const tableSelect = document.getElementById('tableIndexSelect');
+            const scanBtn = document.getElementById('indexBtn');
+
+            tableSelect.innerHTML = '<option value="all">-- All Tables (Slow) --</option>';
+            tableSelect.disabled = true;
+
+            if (!selectedServer || !selectedDB) {
+                scanBtn.disabled = true; scanBtn.innerHTML = "Scan Indexes"; return;
+            }
+
+            scanBtn.innerHTML = '<span class="spinner"></span> Loading Tables...';
+            scanBtn.disabled = true;
+
+            fetch(`/api/tables?server=${selectedServer}&db=${selectedDB}`).then(r => r.json()).then(data => {
+                if (data.tables) {
+                    data.tables.forEach(t => { tableSelect.innerHTML += `<option value="${t}">${t}</option>`; });
+                    tableSelect.disabled = false;
+                }
                 scanBtn.innerHTML = "Scan Indexes"; scanBtn.disabled = false;
-            }).catch(e => { console.error("Error fetching tables", e); scanBtn.innerHTML = "Scan Indexes"; scanBtn.disabled = false; });
-    }
+            }).catch(e => {
+                console.error("Error fetching tables", e);
+                scanBtn.innerHTML = "Scan Indexes"; scanBtn.disabled = false;
+            });
+        }
 
-    function renderIndexPage(page) {
-        currentIdxPage = page; const tbody = document.getElementById('indexTableBody'); tbody.innerHTML = "";
-        const startIndex = (page - 1) * idxRowsPerPage; const endIndex = startIndex + idxRowsPerPage; const pageData = globalIndexData.slice(startIndex, endIndex);
+        function renderIndexPage(page) {
+            currentIdxPage = page;
+            const tbody = document.getElementById('indexTableBody');
+            tbody.innerHTML = "";
+            const startIndex = (page - 1) * idxRowsPerPage;
+            const endIndex = startIndex + idxRowsPerPage;
+            const pageData = globalIndexData.slice(startIndex, endIndex);
 
-        pageData.forEach(idx => {
-            const tr = document.createElement('tr');
-            let fragBadge = idx.fragmentation > 30 ? `<span class="badge badge-danger">${idx.fragmentation}%</span>` : `<span class="badge badge-warning">${idx.fragmentation}%</span>`;
-            tr.innerHTML = `<td><strong>${idx.table}</strong></td><td>${idx.index}</td><td class="text-right">${fragBadge}</td><td class="text-right">${idx.pages.toLocaleString()}</td>`;
-            tbody.appendChild(tr);
-        });
-        renderPaginationControls();
-    }
+            pageData.forEach(idx => {
+                const tr = document.createElement('tr');
+                let fragBadge = idx.fragmentation > 30 ? `<span class="badge badge-danger">${idx.fragmentation}%</span>` : `<span class="badge badge-warning">${idx.fragmentation}%</span>`;
+                tr.innerHTML = `<td><strong>${idx.table}</strong></td><td>${idx.index}</td><td class="text-right">${fragBadge}</td><td class="text-right">${idx.pages.toLocaleString()}</td>`;
+                tbody.appendChild(tr);
+            });
+            renderPaginationControls();
+        }
 
-    function renderPaginationControls() {
-        const totalPages = Math.ceil(globalIndexData.length / idxRowsPerPage); const controlsDiv = document.getElementById('indexPagination'); controlsDiv.innerHTML = "";
-        if (totalPages <= 1) return;
+        function renderPaginationControls() {
+            const totalPages = Math.ceil(globalIndexData.length / idxRowsPerPage);
+            const controlsDiv = document.getElementById('indexPagination');
+            controlsDiv.innerHTML = "";
 
-        const prevBtn = document.createElement('button'); prevBtn.textContent = "◀ Prev"; prevBtn.className = "btn-page"; prevBtn.disabled = currentIdxPage === 1; prevBtn.onclick = () => renderIndexPage(currentIdxPage - 1);
-        const pageIndicator = document.createElement('span'); pageIndicator.style.fontSize = "13px"; pageIndicator.style.color = "#64748b"; pageIndicator.style.fontWeight = "bold"; pageIndicator.textContent = `Page ${currentIdxPage} of ${totalPages}`;
-        const nextBtn = document.createElement('button'); nextBtn.textContent = "Next ▶"; nextBtn.className = "btn-page"; nextBtn.disabled = currentIdxPage === totalPages; nextBtn.onclick = () => renderIndexPage(currentIdxPage + 1);
+            if (totalPages <= 1) return;
 
-        controlsDiv.appendChild(prevBtn); controlsDiv.appendChild(pageIndicator); controlsDiv.appendChild(nextBtn);
-    }
+            const prevBtn = document.createElement('button');
+            prevBtn.textContent = "◀ Prev";
+            prevBtn.className = "btn-page";
+            prevBtn.disabled = currentIdxPage === 1;
+            prevBtn.onclick = () => renderIndexPage(currentIdxPage - 1);
 
-    function fetchIndexes() {
-        const selectedServer = document.getElementById('serverSelect').value; const selectedDB = document.getElementById('dbIndexSelect').value; const selectedTable = document.getElementById('tableIndexSelect').value;
-        if (!selectedServer || !selectedDB) return showToast("Please select both a server and a database.", "error");
+            const pageIndicator = document.createElement('span');
+            pageIndicator.style.fontSize = "13px"; pageIndicator.style.color = "#64748b";
+            pageIndicator.style.fontWeight = "bold";
+            pageIndicator.textContent = `Page ${currentIdxPage} of ${totalPages}`;
 
-        const btn = document.getElementById('indexBtn'); btn.innerHTML = '<span class="spinner"></span> Scanning...'; btn.disabled = true;
-        document.getElementById('indexResults').style.display = 'block'; const tbody = document.getElementById('indexTableBody'); const paginationDiv = document.getElementById('indexPagination');
+            const nextBtn = document.createElement('button');
+            nextBtn.textContent = "Next ▶";
+            nextBtn.className = "btn-page";
+            nextBtn.disabled = currentIdxPage === totalPages;
+            nextBtn.onclick = () => renderIndexPage(currentIdxPage + 1);
 
-        tbody.innerHTML = "<tr><td colspan='4' class='text-center' style='padding: 30px; color: #64748b;'><span class='spinner spinner-dark'></span> Scanning indexes (This might take a few seconds)...</td></tr>"; paginationDiv.innerHTML = "";
+            controlsDiv.appendChild(prevBtn);
+            controlsDiv.appendChild(pageIndicator);
+            controlsDiv.appendChild(nextBtn);
+        }
 
-        fetch(`/api/indexes?server=${selectedServer}&db=${selectedDB}&table=${encodeURIComponent(selectedTable)}`)
-            .then(r => r.json()).then(data => {
-                btn.innerHTML = "Scan Indexes"; btn.disabled = false;
-                if (data.error) { tbody.innerHTML = `<tr><td colspan='4' class="text-center" style="color:red;">Error: ${data.error}</td></tr>`; return; }
-                globalIndexData = data.indexes;
-                if (globalIndexData.length === 0) { tbody.innerHTML = "<tr><td colspan='4' class='text-center' style='padding: 30px; color: #10b981; font-weight: bold;'>✅ No highly fragmented large indexes found! System is healthy.</td></tr>"; return; }
-                renderIndexPage(1);
-            }).catch(e => { btn.innerHTML = "Scan Indexes"; btn.disabled = false; tbody.innerHTML = `<tr><td colspan='4' class="text-center" style="color:red;">Failed to connect.</td></tr>`; });
-    }
+        function fetchIndexes() {
+            const selectedServer = document.getElementById('serverSelect').value;
+            const selectedDB = document.getElementById('dbIndexSelect').value;
+            const selectedTable = document.getElementById('tableIndexSelect').value;
 
-    function fetchSecurity() {
-        const selectedServer = document.getElementById('serverSelect').value; const selectedDB = document.getElementById('dbSecuritySelect').value;
-        if (!selectedServer || !selectedDB) return showToast("Please select both a server and a database.", "error");
+            if (!selectedServer || !selectedDB) return showToast("Please select both a server and a database.", "error");
 
-        const btn = document.getElementById('securityBtn'); btn.innerHTML = '<span class="spinner"></span> Validating...'; btn.disabled = true;
-        document.getElementById('securityResults').style.display = 'block'; const oTbody = document.getElementById('orphanedTableBody'); const owTbody = document.getElementById('ownerTableBody');
+            const btn = document.getElementById('indexBtn');
+            btn.innerHTML = '<span class="spinner"></span> Scanning...';
+            btn.disabled = true;
 
-        oTbody.innerHTML = "<tr><td colspan='2' class='text-center' style='padding: 10px; color: #64748b;'><span class='spinner spinner-dark'></span> Scanning users...</td></tr>";
-        owTbody.innerHTML = "<tr><td colspan='2' class='text-center' style='padding: 10px; color: #64748b;'><span class='spinner spinner-dark'></span> Loading db_owners...</td></tr>";
+            document.getElementById('indexResults').style.display = 'block';
+            const tbody = document.getElementById('indexTableBody');
+            const paginationDiv = document.getElementById('indexPagination');
 
-        fetch(`/api/security?server=${selectedServer}&db=${selectedDB}`).then(r => r.json()).then(data => {
+            tbody.innerHTML = "<tr><td colspan='4' class='text-center' style='padding: 30px; color: #64748b;'><span class='spinner spinner-dark'></span> Scanning indexes (This might take a few seconds)...</td></tr>";
+            paginationDiv.innerHTML = "";
+
+            fetch(`/api/indexes?server=${selectedServer}&db=${selectedDB}&table=${encodeURIComponent(selectedTable)}`)
+                .then(r => r.json()).then(data => {
+                    btn.innerHTML = "Scan Indexes"; btn.disabled = false;
+                    if (data.error) {
+                        tbody.innerHTML = `<tr><td colspan='4' class="text-center" style="color:red;">Error: ${data.error}</td></tr>`; return;
+                    }
+                    globalIndexData = data.indexes;
+                    if (globalIndexData.length === 0) {
+                        tbody.innerHTML = "<tr><td colspan='4' class='text-center' style='padding: 30px; color: #10b981; font-weight: bold;'>✅ No highly fragmented large indexes found! System is healthy.</td></tr>";
+                        return;
+                    }
+                    renderIndexPage(1);
+                }).catch(e => {
+                    btn.innerHTML = "Scan Indexes"; btn.disabled = false;
+                    tbody.innerHTML = `<tr><td colspan='4' class="text-center" style="color:red;">Failed to connect.</td></tr>`;
+                });
+        }
+
+        function fetchSecurity() {
+            const selectedServer = document.getElementById('serverSelect').value;
+            const selectedDB = document.getElementById('dbSecuritySelect').value;
+
+            if (!selectedServer || !selectedDB) return showToast("Please select both a server and a database.", "error");
+
+            const btn = document.getElementById('securityBtn');
+            btn.innerHTML = '<span class="spinner"></span> Validating...';
+            btn.disabled = true;
+
+            document.getElementById('securityResults').style.display = 'block';
+            const oTbody = document.getElementById('orphanedTableBody');
+            const owTbody = document.getElementById('ownerTableBody');
+
+            oTbody.innerHTML = "<tr><td colspan='2' class='text-center' style='padding: 10px; color: #64748b;'><span class='spinner spinner-dark'></span> Scanning users...</td></tr>";
+            owTbody.innerHTML = "<tr><td colspan='2' class='text-center' style='padding: 10px; color: #64748b;'><span class='spinner spinner-dark'></span> Loading db_owners...</td></tr>";
+
+            fetch(`/api/security?server=${selectedServer}&db=${selectedDB}`).then(r => r.json()).then(data => {
                 btn.innerHTML = "Validate Security"; btn.disabled = false;
-                if (data.error) { oTbody.innerHTML = `<tr><td colspan='2' class="text-center" style="color:red;">Error: ${data.error}</td></tr>`; owTbody.innerHTML = ""; return; }
-                oTbody.innerHTML = "";
-                if (data.orphaned.length === 0) { oTbody.innerHTML = "<tr><td colspan='2' class='text-center' style='padding: 15px; color: #10b981; font-weight: bold;'>✅ No orphaned users found. Access is secure!</td></tr>"; }
-                else { data.orphaned.forEach(u => oTbody.innerHTML += `<tr><td><strong>${u.user}</strong> <span class="badge badge-danger">ORPHANED</span></td><td>${u.type}</td></tr>`); }
-                owTbody.innerHTML = "";
-                if (data.owners.length === 0) { owTbody.innerHTML = "<tr><td colspan='2' class='text-center' style='padding: 15px; color: #64748b;'>No additional db_owners found.</td></tr>"; }
-                else { data.owners.forEach(u => owTbody.innerHTML += `<tr><td><strong>${u.user}</strong></td><td><span class="badge badge-indigo">${u.type}</span></td></tr>`); }
-            }).catch(e => { btn.innerHTML = "Validate Security"; btn.disabled = false; oTbody.innerHTML = `<tr><td colspan='2' class="text-center" style="color:red;">Failed to connect.</td></tr>`; });
-    }
-</script>
 
+                if (data.error) {
+                    oTbody.innerHTML = `<tr><td colspan='2' class="text-center" style="color:red;">Error: ${data.error}</td></tr>`;
+                    owTbody.innerHTML = ""; return;
+                }
+
+                oTbody.innerHTML = "";
+                if (data.orphaned.length === 0) {
+                    oTbody.innerHTML = "<tr><td colspan='2' class='text-center' style='padding: 15px; color: #10b981; font-weight: bold;'>✅ No orphaned users found. Access is secure!</td></tr>";
+                } else {
+                    data.orphaned.forEach(u => oTbody.innerHTML += `<tr><td><strong>${u.user}</strong> <span class="badge badge-danger">ORPHANED</span></td><td>${u.type}</td></tr>`);
+                }
+
+                owTbody.innerHTML = "";
+                if (data.owners.length === 0) {
+                    owTbody.innerHTML = "<tr><td colspan='2' class='text-center' style='padding: 15px; color: #64748b;'>No additional db_owners found.</td></tr>";
+                } else {
+                    data.owners.forEach(u => owTbody.innerHTML += `<tr><td><strong>${u.user}</strong></td><td><span class="badge badge-indigo">${u.type}</span></td></tr>`);
+                }
+            }).catch(e => {
+                btn.innerHTML = "Validate Security"; btn.disabled = false;
+                oTbody.innerHTML = `<tr><td colspan='2' class="text-center" style="color:red;">Failed to connect.</td></tr>`;
+            });
+        }
+    </script>
 {% endif %}
 </body>
 </html>
