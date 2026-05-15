@@ -10,7 +10,7 @@ import json
 import pyodbc
 import os
 import datetime
-import time  # <-- NEW: Required for I/O throttling
+import time  
 
 app = Flask(__name__)
 app.secret_key = os.urandom(24)
@@ -39,6 +39,19 @@ class IndexCache(db.Model):
     index_name = db.Column(db.String(200))
     fragmentation = db.Column(db.Float)
     page_count = db.Column(db.Integer)
+    last_scanned = db.Column(db.DateTime, default=datetime.datetime.utcnow)
+
+class TableStatsCache(db.Model):
+    id = db.Column(db.Integer, primary_key=True)
+    server_alias = db.Column(db.String(100), index=True)
+    db_name = db.Column(db.String(100))
+    schema_name = db.Column(db.String(100))
+    table_name = db.Column(db.String(200))
+    total_rows = db.Column(db.BigInteger)
+    cleanup_status = db.Column(db.String(100))
+    last_update = db.Column(db.String(50))
+    last_scan = db.Column(db.String(50))
+    last_seek = db.Column(db.String(50))
     last_scanned = db.Column(db.DateTime, default=datetime.datetime.utcnow)
 
 # ==========================================
@@ -89,89 +102,184 @@ def get_target_engine(alias):
     return engine
 
 # ==========================================
-# ⏱️ BACKGROUND SCHEDULER (ULTRA-SAFE THROTTLED)
+# ⏱️ BACKGROUND SCANNER LOGIC
 # ==========================================
-def background_index_scan():
-    print(f"\n[{datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S')}] 🚀 STARTING ZERO-IMPACT BACKGROUND INDEX SCAN...")
+def perform_table_scan(server, engine):
+    """Executes the cross-database Ghost Table query and updates the SQLite cache."""
+    try:
+        with engine.connect() as conn:
+            safe_dbs_query = text("SELECT name FROM sys.databases WHERE state_desc = 'ONLINE' AND database_id > 4 AND HAS_DBACCESS(name) = 1;")
+            safe_dbs = [row['name'] for row in conn.execute(safe_dbs_query).mappings()]
+
+            if not safe_dbs: return
+
+            union_queries = []
+            for db_name in safe_dbs:
+                union_queries.append(f"""
+                SELECT '{db_name}' COLLATE DATABASE_DEFAULT AS DatabaseName, 
+                       s.name COLLATE DATABASE_DEFAULT AS SchemaName, 
+                       t.name COLLATE DATABASE_DEFAULT AS TableName, 
+                       SUM(p.rows) AS TotalRows, 
+                       MAX(ius.last_user_update) AS LastUserUpdate, 
+                       MAX(ius.last_user_scan) AS LastUserScan, 
+                       MAX(ius.last_user_seek) AS LastUserSeek
+                FROM [{db_name}].sys.tables t WITH (NOLOCK)
+                INNER JOIN [{db_name}].sys.schemas s WITH (NOLOCK) ON t.schema_id = s.schema_id
+                INNER JOIN [{db_name}].sys.partitions p WITH (NOLOCK) ON t.object_id = p.object_id AND p.index_id IN (0, 1)
+                LEFT JOIN sys.dm_db_index_usage_stats ius WITH (NOLOCK) ON t.object_id = ius.object_id AND ius.database_id = DB_ID('{db_name}')
+                WHERE t.is_ms_shipped = 0
+                GROUP BY s.name, t.name
+                """)
+            
+            final_query = " UNION ALL ".join(union_queries)
+            
+            wrapper_query = text(f"""
+            WITH AllTables AS (
+                {final_query}
+            ),
+            CategorizedTables AS (
+                SELECT DatabaseName, SchemaName, TableName, TotalRows, LastUserUpdate, LastUserScan, LastUserSeek,
+                CASE 
+                    WHEN (LastUserUpdate IS NULL OR LastUserUpdate <= '2024-12-31') AND 
+                         (LastUserScan IS NULL OR LastUserScan <= '2024-12-31') AND 
+                         (LastUserSeek IS NULL OR LastUserSeek <= '2024-12-31') 
+                    THEN 'SAFE TO PURGE: Dead Table'
+                    
+                    WHEN (LastUserUpdate IS NULL OR LastUserUpdate <= '2024-12-31') AND 
+                         (LastUserScan > '2024-12-31' OR LastUserSeek > '2024-12-31') 
+                    THEN 'LOOK CLOSER: Read-Only / Lookup Table'
+                    
+                    WHEN LastUserUpdate > '2024-12-31' 
+                    THEN 'ACTIVE: Do Not Touch'
+                    
+                    ELSE 'REVIEW: Unknown State'
+                END AS CleanupStatus
+                FROM AllTables
+                WHERE TotalRows > 0
+            )
+            SELECT TOP 300 DatabaseName, SchemaName, TableName, TotalRows, CleanupStatus,
+                   CONVERT(VARCHAR, LastUserUpdate, 120) AS LastUpdate,
+                   CONVERT(VARCHAR, LastUserScan, 120) AS LastScan,
+                   CONVERT(VARCHAR, LastUserSeek, 120) AS LastSeek
+            FROM CategorizedTables 
+            WHERE CleanupStatus != 'ACTIVE: Do Not Touch'
+            ORDER BY 
+                CASE CleanupStatus 
+                    WHEN 'SAFE TO PURGE: Dead Table' THEN 1
+                    WHEN 'LOOK CLOSER: Read-Only / Lookup Table' THEN 2
+                    WHEN 'REVIEW: Unknown State' THEN 3
+                END,
+                DatabaseName, TotalRows DESC;
+            """)
+            
+            results = conn.execute(wrapper_query).mappings()
+
+            # Wipe old cache for this server and insert fresh data
+            TableStatsCache.query.filter_by(server_alias=server.alias).delete()
+            
+            current_time = datetime.datetime.utcnow()
+            for r in results:
+                new_stat = TableStatsCache(
+                    server_alias=server.alias,
+                    db_name=r['DatabaseName'],
+                    schema_name=r['SchemaName'],
+                    table_name=r['TableName'],
+                    total_rows=int(r['TotalRows'] or 0),
+                    cleanup_status=r['CleanupStatus'],
+                    last_update=r['LastUpdate'] or 'Never',
+                    last_scan=r['LastScan'] or 'Never',
+                    last_seek=r['LastSeek'] or 'Never',
+                    last_scanned=current_time
+                )
+                db.session.add(new_stat)
+            db.session.commit()
+    except Exception as e:
+        print(f"     [!] Error processing tables for {server.alias}: {str(e)}")
+        db.session.rollback()
+
+def perform_index_scan(server, engine):
+    """Executes the throttled Index Fragmentation scan and updates the SQLite cache."""
+    try:
+        with engine.connect() as conn:
+            dbs = conn.execute(text("SELECT name FROM sys.databases WHERE database_id > 4 AND state_desc = 'ONLINE'")).mappings()
+            for db_row in dbs:
+                db_name = db_row['name']
+                
+                latest_cache = IndexCache.query.filter_by(server_alias=server.alias, db_name=db_name).order_by(IndexCache.last_scanned.desc()).first()
+                if latest_cache:
+                    time_since_scan = datetime.datetime.utcnow() - latest_cache.last_scanned
+                    if time_since_scan.total_seconds() < (167 * 3600): # Skip if newer than 7 days
+                        print(f"     [⏭️] Skipping Index Scan for: {db_name}")
+                        continue
+
+                print(f"     [🔎] Scanning Indexes: {db_name} (Throttled Mode)...")
+                try:
+                    pwd = decrypt_password(server.password)
+                    host_str = f"{server.host},{server.port}" if server.port else server.host
+                    raw_conn_str = f"DRIVER={{ODBC Driver 17 for SQL Server}};SERVER={host_str};DATABASE={db_name};UID={server.user};PWD={pwd};Encrypt=yes;TrustServerCertificate=yes;"
+                    with pyodbc.connect(raw_conn_str, timeout=30) as raw_conn:
+                        cursor = raw_conn.cursor()
+                        cursor.execute("SET DEADLOCK_PRIORITY LOW; SET LOCK_TIMEOUT 2000;")
+                        
+                        target_query = """
+                        SELECT i.object_id, i.index_id, OBJECT_NAME(i.object_id) AS TableName, i.name AS IndexName
+                        FROM sys.indexes i WITH (NOLOCK)
+                        INNER JOIN sys.dm_db_partition_stats ps WITH (NOLOCK) ON i.object_id = ps.object_id AND i.index_id = ps.index_id
+                        WHERE i.name IS NOT NULL
+                        GROUP BY i.object_id, i.index_id, i.name, OBJECT_NAME(i.object_id)
+                        HAVING SUM(ps.used_page_count) > 1000
+                        """
+                        cursor.execute(target_query)
+                        targets = cursor.fetchall()
+                        
+                        IndexCache.query.filter_by(server_alias=server.alias, db_name=db_name).delete()
+                        db.session.commit()
+                        
+                        current_time = datetime.datetime.utcnow()
+                        for t in targets:
+                            try:
+                                scan_query = f"""
+                                SELECT ROUND(avg_fragmentation_in_percent, 2) AS Fragmentation, page_count AS PageCount
+                                FROM sys.dm_db_index_physical_stats(DB_ID(), {t.object_id}, {t.index_id}, NULL, 'LIMITED')
+                                WHERE avg_fragmentation_in_percent > 10.0;
+                                """
+                                cursor.execute(scan_query)
+                                res = cursor.fetchone()
+                                
+                                if res:
+                                    new_idx = IndexCache(server_alias=server.alias, db_name=db_name, table_name=t.TableName, index_name=t.IndexName, fragmentation=res.Fragmentation, page_count=res.PageCount, last_scanned=current_time)
+                                    db.session.add(new_idx)
+                                    db.session.commit()
+                                    
+                                time.sleep(1.5)
+                            except pyodbc.Error:
+                                print(f"     [!] Skipped index {t.IndexName} due to locking.")
+                                continue
+                                
+                except Exception as e:
+                    print(f"     [!] Error processing {db_name}: {str(e)}")
+                    db.session.rollback()
+                    continue
+    except Exception as e:
+        print(f"  [!] Error connecting to {server.alias}: {str(e)}")
+
+def master_background_scan():
+    """Master job that runs both table scans and index scans sequentially."""
+    print(f"\n[{datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S')}] 🚀 STARTING MASTER BACKGROUND SCANS (TABLES -> INDEXES)...")
     with app.app_context():
         servers = ServerConfig.query.all()
         for server in servers:
             print(f"  -> Connecting to Server: {server.alias}...")
-            try:
-                engine = get_target_engine(server.alias)
-                if not engine: continue
-                
-                with engine.connect() as conn:
-                    dbs = conn.execute(text("SELECT name FROM sys.databases WHERE database_id > 4 AND state_desc = 'ONLINE'")).mappings()
-                    for db_row in dbs:
-                        db_name = db_row['name']
-                        
-                        latest_cache = IndexCache.query.filter_by(server_alias=server.alias, db_name=db_name).order_by(IndexCache.last_scanned.desc()).first()
-                        if latest_cache:
-                            time_since_scan = datetime.datetime.utcnow() - latest_cache.last_scanned
-                            if time_since_scan.total_seconds() < (167 * 3600): # 167 hours
-                                print(f"     [⏭️] Skipping Database: {db_name} (Already scanned {time_since_scan.total_seconds() / 86400:.1f} days ago)")
-                                continue
-
-                        print(f"     [🔎] Scanning Database: {db_name} (Throttled Mode)...")
-                        try:
-                            pwd = decrypt_password(server.password)
-                            host_str = f"{server.host},{server.port}" if server.port else server.host
-                            raw_conn_str = f"DRIVER={{ODBC Driver 17 for SQL Server}};SERVER={host_str};DATABASE={db_name};UID={server.user};PWD={pwd};Encrypt=yes;TrustServerCertificate=yes;"
-                            with pyodbc.connect(raw_conn_str, timeout=30) as raw_conn:
-                                cursor = raw_conn.cursor()
-                                
-                                # SAFETY NET 1: Never win a deadlock, never wait more than 2 seconds for a lock
-                                cursor.execute("SET DEADLOCK_PRIORITY LOW; SET LOCK_TIMEOUT 2000;")
-                                
-                                # SAFETY NET 2: Get target indexes quickly without scanning them yet
-                                target_query = """
-                                SELECT i.object_id, i.index_id, OBJECT_NAME(i.object_id) AS TableName, i.name AS IndexName
-                                FROM sys.indexes i WITH (NOLOCK)
-                                INNER JOIN sys.dm_db_partition_stats ps WITH (NOLOCK) ON i.object_id = ps.object_id AND i.index_id = ps.index_id
-                                WHERE i.name IS NOT NULL
-                                GROUP BY i.object_id, i.index_id, i.name, OBJECT_NAME(i.object_id)
-                                HAVING SUM(ps.used_page_count) > 1000
-                                """
-                                cursor.execute(target_query)
-                                targets = cursor.fetchall()
-                                
-                                # Clear out the old cache for this database
-                                IndexCache.query.filter_by(server_alias=server.alias, db_name=db_name).delete()
-                                db.session.commit()
-                                
-                                # SAFETY NET 3: Drip-feed the scans one by one with a pause
-                                for t in targets:
-                                    try:
-                                        scan_query = f"""
-                                        SELECT ROUND(avg_fragmentation_in_percent, 2) AS Fragmentation, page_count AS PageCount
-                                        FROM sys.dm_db_index_physical_stats(DB_ID(), {t.object_id}, {t.index_id}, NULL, 'LIMITED')
-                                        WHERE avg_fragmentation_in_percent > 10.0;
-                                        """
-                                        cursor.execute(scan_query)
-                                        res = cursor.fetchone()
-                                        
-                                        if res:
-                                            new_idx = IndexCache(server_alias=server.alias, db_name=db_name, table_name=t.TableName, index_name=t.IndexName, fragmentation=res.Fragmentation, page_count=res.PageCount)
-                                            db.session.add(new_idx)
-                                            db.session.commit()
-                                            
-                                        # THE MAGIC TRICK: Pause 1.5 seconds to let the physical disk breathe!
-                                        time.sleep(1.5)
-                                        
-                                    except pyodbc.Error as scan_err:
-                                        print(f"     [!] Skipped index {t.IndexName} due to user locking/timeout.")
-                                        continue
-                                        
-                        except Exception as e:
-                            print(f"     [!] Error processing {db_name}: {str(e)}")
-                            db.session.rollback()
-                            continue
-            except Exception as e:
-                print(f"  [!] Error connecting to {server.alias}: {str(e)}")
-                continue
-    print(f"[{datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S')}] ✅ ZERO-IMPACT INDEX SCAN COMPLETE.\n")
-
+            engine = get_target_engine(server.alias)
+            if not engine: continue
+            
+            print(f"     [1/2] Updating Ghost Table Cache...")
+            perform_table_scan(server, engine)
+            
+            print(f"     [2/2] Updating Index Fragmentation Cache...")
+            perform_index_scan(server, engine)
+            
+    print(f"[{datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S')}] ✅ MASTER BACKGROUND SCAN COMPLETE.\n")
 
 # ==========================================
 # 🔐 SECURITY DECORATOR
@@ -282,6 +390,7 @@ def delete_server():
         if server:
             if alias in target_engines: del target_engines[alias]
             IndexCache.query.filter_by(server_alias=alias).delete()
+            TableStatsCache.query.filter_by(server_alias=alias).delete()
             db.session.delete(server)
             db.session.commit()
             return jsonify({"success": True, "message": "Server deleted successfully."})
@@ -390,7 +499,7 @@ def get_metrics():
                       (CASE WHEN TotalWrites = 0 THEN 0 ELSE (TotalWriteStall / TotalWrites) END)) DESC;
             """)
             io_latency = [{"database": r['DatabaseName'], "drive": r['Drive'], "read_ms": int(r['ReadLatency_ms']), "write_ms": int(r['WriteLatency_ms'])} for r in conn.execute(io_query).mappings() if r['DatabaseName']]
-            
+
             try:
                 error_logs = [{"log_date": r[0].strftime('%Y-%m-%d %H:%M:%S') if r[0] else '', "process": r[1], "message": r[2]} for r in conn.execute(text("DECLARE @ts DATETIME = DATEADD(hh, -4, GETDATE()); EXEC xp_readerrorlog 0, 1, N'Error', NULL, @ts;")).fetchall()][:10]
             except Exception:
@@ -402,6 +511,34 @@ def get_metrics():
                     alerts.append(f"⚠️ SECURITY WARNING: Detected multiple 'Login failed' errors in the last 4 hours. Check for misconfigured apps or brute-force attempts.")
             except Exception:
                 brute_force_logs = []
+
+            # --- FETCH GHOST TABLES FROM SQLITE CACHE ---
+            cached_tables = TableStatsCache.query.filter_by(server_alias=server_name).all()
+            table_stats = []
+            table_cache_time = "Never"
+            
+            if cached_tables:
+                # Use the timestamp from the first record
+                time_diff = datetime.datetime.utcnow() - cached_tables[0].last_scanned
+                hours_ago = int(time_diff.total_seconds() / 3600)
+                if hours_ago < 1:
+                    table_cache_time = "Just now"
+                elif hours_ago < 24:
+                    table_cache_time = f"{hours_ago} hour(s) ago"
+                else:
+                    table_cache_time = f"{hours_ago // 24} day(s) ago"
+                    
+                for ts in cached_tables:
+                    table_stats.append({
+                        "database": ts.db_name, 
+                        "schema": ts.schema_name, 
+                        "table": ts.table_name, 
+                        "rows": ts.total_rows, 
+                        "status": ts.cleanup_status, 
+                        "last_update": ts.last_update, 
+                        "last_scan": ts.last_scan, 
+                        "last_seek": ts.last_seek
+                    })
 
             if len(alerts) == 0:
                 alerts.append("✅ System is entirely healthy. No active alerts.")
@@ -426,11 +563,32 @@ def get_metrics():
                 "ram_usage": ram_usage,         
                 "running_jobs": running_jobs,   
                 "io_latency": io_latency,       
-                "brute_force": brute_force_logs 
+                "brute_force": brute_force_logs,
+                "table_usage_stats": table_stats,
+                "table_cache_time": table_cache_time
             })
             
     except Exception as e:
         return jsonify({"error": str(e)}), 500
+
+@app.route('/api/tables/refresh_cache', methods=['POST'])
+@login_required
+def refresh_table_cache():
+    """Manually triggers the Ghost Table background scan for a specific server."""
+    server_alias = request.json.get('server')
+    if not server_alias:
+        return jsonify({"error": "No server specified"}), 400
+        
+    server = ServerConfig.query.filter_by(alias=server_alias).first()
+    engine = get_target_engine(server_alias)
+    
+    if not server or not engine:
+        return jsonify({"error": "Server connection invalid"}), 400
+        
+    # Execute the scan synchronously so the UI can reload immediately after it finishes
+    perform_table_scan(server, engine)
+    
+    return jsonify({"success": True})
 
 
 # ---------- FETCH TABLES ----------
@@ -523,7 +681,8 @@ if __name__ == '__main__':
                 print(f"Migration error: {e}")
 
     scheduler = BackgroundScheduler()
-    scheduler.add_job(func=background_index_scan, trigger="interval", days=7, next_run_time=datetime.datetime.now())
+    # Schedule the master job that runs Tables -> Indexes sequentially every 7 days
+    scheduler.add_job(func=master_background_scan, trigger="interval", days=7, next_run_time=datetime.datetime.now())
     scheduler.start()
 
     app.run(host='0.0.0.0', port=5000, threaded=True)
