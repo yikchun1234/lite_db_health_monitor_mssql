@@ -233,6 +233,7 @@
 <div id="toastContainer"></div>
 
 {% if not logged_in %}
+<!-- ================= LOGIN SCREEN ================= -->
 <div class="login-wrapper">
     <div class="login-card">
         <button class="info-btn-login" onclick="openAboutModal()" title="About this portal">i</button>
@@ -327,6 +328,7 @@ function attemptLogin() {
 </script>
 
 {% else %}
+<!-- ================= DASHBOARD UI ================= -->
 <div id="globalTooltip" class="global-tooltip"></div>
 
 <div class="container">
@@ -346,8 +348,10 @@ function attemptLogin() {
         </div>
     </div>
 
+    <!-- MAIN RESULTS AREA -->
     <div id="results" style="display: none;">
 
+        <!-- CONNECTION ERROR -->
         <div id="connectionErrorContainer" class="card" style="display: none; border-left: 4px solid #ef4444; background-color: #fef2f2;">
             <div style="display: flex; align-items: center; gap: 15px; margin-bottom: 15px;">
                 <div style="font-size: 35px;">🔌</div>
@@ -372,6 +376,7 @@ function attemptLogin() {
 
         <div id="dashboardContent" style="display: none;">
 
+            <!-- SERVER OVERVIEW INFO -->
             <div class="card" style="padding: 15px; border-left: 4px solid #64748b; background: #f8fafc; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap;">
                 <div>
                     <span style="color: #475569; font-size: 13px; font-weight: bold; text-transform: uppercase;">Engine Version</span><br>
@@ -383,11 +388,13 @@ function attemptLogin() {
                 </div>
             </div>
 
+            <!-- SERVER ALERTS -->
             <div id="alertBox" class="alerts" style="display: none;">
                 <strong id="alertTitle">⚠️ Critical Server Alerts</strong>
                 <ul id="serverAlerts"></ul>
             </div>
 
+            <!-- BRUTE FORCE ALERTS -->
             <div id="bruteForceContainer" class="card" style="display: none; border-left: 4px solid #dc2626; background-color: #fef2f2;">
                 <h3 style="color: #991b1b;">🚨 Security Alert: Failed Login Attempts</h3>
                 <div class="table-responsive">
@@ -404,6 +411,7 @@ function attemptLogin() {
                 </div>
             </div>
 
+            <!-- ERROR LOGS -->
             <div id="errorLogContainer" class="card" style="display: none; border-left: 4px solid #b91c1c;">
                 <h3 style="color: #991b1b;">⚠️ Critical SQL Engine Errors (Last 4 Hours)</h3>
                 <div class="table-responsive">
@@ -420,6 +428,7 @@ function attemptLogin() {
                 </div>
             </div>
 
+            <!-- CORRUPTED PAGES -->
             <div id="corruptionContainer" class="card" style="display: none; border-left: 4px solid #991b1b; background-color: #fef2f2;">
                 <h3 style="color: #7f1d1d;">☠️ DATABASE CORRUPTION DETECTED</h3>
                 <div class="table-responsive">
@@ -437,6 +446,7 @@ function attemptLogin() {
                 </div>
             </div>
 
+            <!-- CPU & WAIT STATS -->
             <div class="card" style="border-left: 4px solid #3b82f6;">
                 <h3 style="color: #2563eb;">⚡ Server CPU & Top Wait Statistics</h3>
                 <div style="margin-bottom: 20px; padding: 15px; background: #f8fafc; border-radius: 8px; border: 1px solid #e2e8f0;">
@@ -459,6 +469,7 @@ function attemptLogin() {
                 </div>
             </div>
 
+            <!-- MEMORY USAGE -->
             <div id="ramContainer" class="card" style="display: none; border-left: 4px solid #8b5cf6;">
                 <h3 style="color: #6d28d9;">🧠 Memory (RAM) Consumption by Database</h3>
                 <div class="table-responsive">
@@ -474,6 +485,7 @@ function attemptLogin() {
                 </div>
             </div>
 
+            <!-- I/O LATENCY -->
             <div id="ioLatencyContainer" class="card" style="display: none; border-left: 4px solid #f43f5e;">
                 <h3 style="color: #e11d48;">💽 Disk I/O Latency Warnings (Top 10 Slowest)</h3>
                 <div class="table-responsive">
@@ -491,6 +503,7 @@ function attemptLogin() {
                 </div>
             </div>
 
+            <!-- RUNNING JOBS -->
             <div id="runningJobsContainer" class="card" style="display: none; border-left: 4px solid #14b8a6;">
                 <h3 style="color: #0d9488;">⏱️ Active Running SQL Agent Jobs</h3>
                 <div class="table-responsive">
@@ -507,6 +520,7 @@ function attemptLogin() {
                 </div>
             </div>
 
+            <!-- ACTIVE CONNECTIONS -->
             <div id="connectionsContainer" class="card" style="display: none; border-left: 4px solid #06b6d4;">
                 <h3 style="color: #0891b2;">🔌 Active Connection Pool (Top 10)</h3>
                 <div class="table-responsive">
@@ -523,6 +537,7 @@ function attemptLogin() {
                 </div>
             </div>
 
+            <!-- MISSING INDEX STATS -->
             <div id="missingIndexContainer" class="card" style="display: none; border-left: 4px solid #10b981;">
                 <h3 style="color: #059669;">📈 Top 5 High-Impact Missing Indexes</h3>
                 <div class="table-responsive">
@@ -540,6 +555,7 @@ function attemptLogin() {
                 </div>
             </div>
 
+            <!-- SYSADMINS -->
             <div id="sysadminContainer" class="card" style="border-left: 4px solid #64748b;">
                 <h3 style="color: #334155;">🛡️ Sysadmin Accounts (Server Admins)</h3>
                 <div class="table-responsive">
@@ -556,6 +572,7 @@ function attemptLogin() {
                 </div>
             </div>
 
+            <!-- LONG QUERIES -->
             <div id="longQueriesContainer" class="card" style="display: none; border-left: 4px solid #ef4444;">
                 <h3 style="color: #dc2626;">🚨 Active Blocked, Long-Running, or Sleeping Queries</h3>
                 <div class="table-responsive">
@@ -573,6 +590,7 @@ function attemptLogin() {
                 </div>
             </div>
 
+            <!-- FAILED JOBS -->
             <div id="failedJobsContainer" class="card" style="display: none; border-left: 4px solid #f97316;">
                 <h3 style="color: #ea580c;">❌ Failed SQL Agent Jobs (Last 24 Hours)</h3>
                 <div class="table-responsive">
@@ -589,6 +607,7 @@ function attemptLogin() {
                 </div>
             </div>
 
+            <!-- AG HEALTH -->
             <div id="agContainer" class="card" style="display: none; border-left: 4px solid #0ea5e9;">
                 <h3 style="color: #0ea5e9;">🔄 Availability Group Sync Health</h3>
                 <div class="table-responsive">
@@ -607,6 +626,7 @@ function attemptLogin() {
                 </div>
             </div>
 
+            <!-- TEMPDB -->
             <div class="card" style="border-left: 4px solid #f59e0b;">
                 <h3 style="color: #d97706;">🔥 TempDB Health & Contention</h3>
                 <div class="table-responsive">
@@ -625,6 +645,29 @@ function attemptLogin() {
                 </div>
             </div>
 
+            <!-- DATABASE DETACH PLANNER -->
+            <div id="dbPurgeContainer" class="card" style="display: none; border-left: 4px solid #8b5cf6;">
+                <div style="display: flex; justify-content: space-between; align-items: center;">
+                    <h3 style="color: #6d28d9; margin-bottom: 5px;">🗑️ Database Detach Planner (Live)</h3>
+                    <span class="badge badge-success">Live Memory Scan</span>
+                </div>
+                <p style="color: #64748b; font-size: 13px; margin-top: 0; margin-bottom: 15px;">Ultra-fast real-time scan of database memory to identify totally inactive databases safe to drop or detach.</p>
+                <div class="table-responsive">
+                    <table>
+                        <thead>
+                            <tr>
+                                <th>Database Name</th>
+                                <th class="text-right">Last Read <span class="info-icon has-tooltip" data-tooltip="The exact timestamp of the most recent SELECT query against any table in this database.">?</span></th>
+                                <th class="text-right">Last Write <span class="info-icon has-tooltip" data-tooltip="The exact timestamp of the most recent INSERT, UPDATE, or DELETE against any table in this database.">?</span></th>
+                                <th>Action Plan</th>
+                            </tr>
+                        </thead>
+                        <tbody id="dbPurgeBody"></tbody>
+                    </table>
+                </div>
+            </div>
+
+            <!-- GHOST TABLES -->
             <div id="tableStatsContainer" class="card" style="display: none; border-left: 4px solid #475569; padding-bottom: 0;">
                 <div style="display: flex; justify-content: space-between; align-items: center; border-bottom: 2px solid var(--bg); padding-bottom: 12px; margin-bottom: 15px; flex-wrap: wrap; gap: 10px;">
                     <div style="display: flex; align-items: center; gap: 12px;">
@@ -660,24 +703,7 @@ function attemptLogin() {
                 </div>
             </div>
 
-            <div id="dbPurgeContainer" class="card" style="display: none; border-left: 4px solid #8b5cf6;">
-                <h3 style="color: #6d28d9;">🗑️ Database Detach Planner</h3>
-                <p style="color: #64748b; font-size: 13px; margin-top: -10px; margin-bottom: 15px;">Database-level summary of dead tables to identify targets safe to rename or detach.</p>
-                <div class="table-responsive">
-                    <table>
-                        <thead>
-                            <tr>
-                                <th>Database Name</th>
-                                <th class="text-right">Total Tables</th>
-                                <th class="text-right">Dead Tables</th>
-                                <th>Action Plan</th>
-                            </tr>
-                        </thead>
-                        <tbody id="dbPurgeBody"></tbody>
-                    </table>
-                </div>
-            </div>
-
+            <!-- DRIVES -->
             <div class="card">
                 <h3>💽 Server Drives</h3>
                 <div class="table-responsive">
@@ -695,6 +721,7 @@ function attemptLogin() {
                 </div>
             </div>
 
+            <!-- DATABASES -->
             <div class="card">
                 <h3>🗄️ Databases on Server</h3>
                 <div class="table-responsive">
@@ -715,6 +742,7 @@ function attemptLogin() {
                 </div>
             </div>
 
+            <!-- RESTORES -->
             <div id="restoreContainer" class="card" style="border-left: 4px solid #14b8a6;">
                 <h3 style="color: #0f766e;">⏪ Database Restores (Last 7 Days)</h3>
                 <div class="table-responsive">
@@ -734,6 +762,7 @@ function attemptLogin() {
         </div>
     </div>
 
+    <!-- BACKGROUND TOOLS -->
     <div class="card">
         <div style="display:flex; justify-content: space-between; align-items: center;">
             <h3 style="margin: 0;">⚡ Index Fragmentation Scanner (Cached)</h3>
@@ -806,6 +835,8 @@ function attemptLogin() {
     </div>
 
 </div>
+
+<!-- ================= MODALS ================= -->
 
 <div id="addServerModal" class="modal">
     <div class="modal-content">
@@ -1458,18 +1489,7 @@ function fetchMetrics() {
                 });
             }
 
-            // Ghost Tables
-            const tsContainer = document.getElementById('tableStatsContainer');
-            if (data.table_usage_stats && data.table_usage_stats.length > 0) {
-                tsContainer.style.display = 'block';
-                document.getElementById('tableCacheTime').innerText = "Last scan: " + (data.table_cache_time || 'Just now');
-                ghostDataStore = data.table_usage_stats;
-                renderNextGhostChunk();
-            } else {
-                tsContainer.style.display = 'none';
-            }
-
-            // Database Purge Summary
+            // LIVE DATABASE PURGE SUMMARY
             const dbpContainer = document.getElementById('dbPurgeContainer');
             const dbpTbody = document.getElementById('dbPurgeBody');
             if (data.db_purge_stats && data.db_purge_stats.length > 0) {
@@ -1481,13 +1501,28 @@ function fetchMetrics() {
                     } else {
                         actionBadge = `<span class="badge badge-warning">${db.action_plan}</span>`;
                     }
+
+                    let readHtml = db.last_read === 'Never' ? '<span class="badge badge-danger">Never</span>' : db.last_read;
+                    let writeHtml = db.last_write === 'Never' ? '<span class="badge badge-danger">Never</span>' : db.last_write;
+
                     dbpTbody.innerHTML += `<tr>
                         <td><strong>${db.database}</strong></td>
-                        <td class="text-right">${db.total_tables}</td>
-                        <td class="text-right">${db.dead_tables}</td>
+                        <td class="text-right">${readHtml}</td>
+                        <td class="text-right">${writeHtml}</td>
                         <td>${actionBadge}</td>
                     </tr>`;
                 });
+            }
+
+            // Ghost Tables
+            const tsContainer = document.getElementById('tableStatsContainer');
+            if (data.table_usage_stats && data.table_usage_stats.length > 0) {
+                tsContainer.style.display = 'block';
+                document.getElementById('tableCacheTime').innerText = "Last scan: " + (data.table_cache_time || 'Just now');
+                ghostDataStore = data.table_usage_stats;
+                renderNextGhostChunk();
+            } else {
+                tsContainer.style.display = 'none';
             }
 
             // Drives
