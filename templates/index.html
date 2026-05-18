@@ -186,8 +186,8 @@
 
         .form-group { margin-bottom: 15px; }
         .form-group label { display: block; font-size: 13px; font-weight: 600; color: #475569; margin-bottom: 5px; }
-        .form-group input { width: 100%; padding: 10px 12px; font-size: 14px; border: 1px solid #cbd5e1; border-radius: 6px; box-sizing: border-box; outline: none; transition: border-color 0.2s; }
-        .form-group input:focus:not([readonly]) { border-color: var(--primary); box-shadow: 0 0 0 3px rgba(14, 165, 233, 0.2); }
+        .form-group input[type="text"], .form-group input[type="password"] { width: 100%; padding: 10px 12px; font-size: 14px; border: 1px solid #cbd5e1; border-radius: 6px; box-sizing: border-box; outline: none; transition: border-color 0.2s; }
+        .form-group input[type="text"]:focus:not([readonly]), .form-group input[type="password"]:focus:not([readonly]) { border-color: var(--primary); box-shadow: 0 0 0 3px rgba(14, 165, 233, 0.2); }
         .form-group input[readonly] { background-color: #f1f5f9; cursor: not-allowed; color: #64748b; border-color: #e2e8f0; }
 
         /* --- TOOLTIPS --- */
@@ -340,7 +340,7 @@ function attemptLogin() {
             <button id="deleteServerBtn" class="btn-outline btn-danger-outline" onclick="openDeleteServerModal()" title="Delete Server" disabled>🗑️</button>
 
             <select id="serverSelect" onchange="handleServerSelection()">
-                <option value="">-- Select a Server --</option>
+                <option value="" style="color: #334155;">-- Select a Server --</option>
             </select>
 
             <button id="refreshBtn" onclick="fetchMetrics()">Refresh Dashboard</button>
@@ -747,7 +747,7 @@ function attemptLogin() {
                     </div>
                     <div style="display: flex; align-items: center; gap: 15px;">
                         <span id="tableCacheTime" style="font-size: 13px; color: #64748b; font-weight: 600;"></span>
-                        <button id="refreshGhostBtn" class="btn-outline" style="padding: 6px 12px; font-size: 13px;" onclick="refreshGhostCache()">🔄 Refresh Cache</button>
+                        <button id="refreshGhostBtn" class="btn-outline" style="padding: 6px 12px; font-size: 13px;" onclick="confirmRefreshCache('ghost')">🔄 Refresh Cache</button>
                     </div>
                 </div>
 
@@ -835,9 +835,15 @@ function attemptLogin() {
 
     <!-- BACKGROUND TOOLS -->
     <div class="card">
-        <div style="display:flex; justify-content: space-between; align-items: center;">
-            <h3 style="margin: 0;">⚡ Index Fragmentation Scanner (Cached)</h3>
-            <span class="badge badge-indigo">Background Job Active</span>
+        <div style="display: flex; justify-content: space-between; align-items: center; border-bottom: 2px solid var(--bg); padding-bottom: 12px; margin-bottom: 15px; flex-wrap: wrap; gap: 10px;">
+            <div style="display: flex; align-items: center; gap: 12px;">
+                <h3 style="margin: 0; padding: 0; border: none;">⚡ Index Fragmentation Scanner</h3>
+                <span class="badge badge-indigo">Background Cached</span>
+            </div>
+            <div style="display: flex; align-items: center; gap: 15px;">
+                <span id="indexCacheTime" style="font-size: 13px; color: #64748b; font-weight: 600;"></span>
+                <button id="refreshIndexBtn" class="btn-outline" style="padding: 6px 12px; font-size: 13px;" onclick="confirmRefreshCache('index')">🔄 Refresh Cache</button>
+            </div>
         </div>
         <p style="color: #64748b; font-size: 13px; margin-top: 5px; margin-bottom: 15px;">Now utilizes a backend SQLite cache to guarantee zero-impact to production SQL Server performance!</p>
         <div class="controls">
@@ -930,9 +936,14 @@ function attemptLogin() {
             <label>SQL Username</label>
             <input type="text" id="newUser" placeholder="e.g. sa" required>
         </div>
-        <div class="form-group" style="margin-bottom: 25px;">
+        <div class="form-group" style="margin-bottom: 20px;">
             <label id="passwordLabel">Password</label>
             <input type="password" id="newPassword" placeholder="••••••••" required>
+        </div>
+
+        <div class="form-group" style="display: flex; align-items: center; gap: 10px; margin-bottom: 25px; padding: 10px; background: #f8fafc; border: 1px solid #cbd5e1; border-radius: 6px;">
+            <input type="checkbox" id="newIsDisabled" style="width: auto; margin: 0; cursor: pointer;">
+            <label for="newIsDisabled" style="margin: 0; cursor: pointer;">Disable this server (Exclude from scans)</label>
         </div>
 
         <button onclick="submitServer()" style="width: 100%;" id="saveServerBtn" class="btn-success">Save Server</button>
@@ -956,6 +967,24 @@ function attemptLogin() {
     </div>
 </div>
 
+<!-- NEW REFRESH CONFIRMATION MODAL -->
+<div id="refreshConfirmModal" class="modal">
+    <div class="modal-content" style="width: 380px; text-align: center; padding: 40px 30px;">
+        <span class="close-btn" onclick="closeRefreshConfirmModal()">&times;</span>
+        <div style="font-size: 40px; margin-bottom: 10px;">⏳</div>
+        <h3 style="margin-top: 0; color: #0f172a; margin-bottom: 15px; border: none; padding-bottom: 0;">Confirm Deep Scan</h3>
+        <p style="color: #475569; font-size: 14px; line-height: 1.5; margin-bottom: 25px;">
+            This scan requires heavy processing and may take several minutes to complete depending on the size of the databases.
+            <br><br>
+            <strong>Do you wish to continue?</strong>
+        </p>
+        <div style="display: flex; gap: 15px; justify-content: center;">
+            <button class="btn-page" style="flex: 1; padding: 12px; font-weight: 600;" onclick="closeRefreshConfirmModal()">Cancel</button>
+            <button class="btn-success" style="flex: 1; padding: 12px; font-weight: 600;" id="executeRefreshBtn">Yes, Scan Now</button>
+        </div>
+    </div>
+</div>
+
 <script>
 // ==========================================
 // GLOBAL STATE & UTILITIES
@@ -970,6 +999,7 @@ const idxRowsPerPage = 10;
 
 let isEditingMode = false;
 let currentEditAlias = "";
+let currentRefreshType = ""; // Tracks which cache to refresh (ghost or index)
 
 const loadingPhrases = [
     "Refreshing...", "Relax...", "No worry...", "Is running...",
@@ -1069,13 +1099,23 @@ function loadServerDropdown(autoSelectAlias = null) {
     fetch('/api/databases')
         .then(response => response.json())
         .then(servers => {
-            servers.sort((a, b) => a.localeCompare(b));
+            servers.sort((a, b) => a.alias.localeCompare(b.alias));
             const select = document.getElementById('serverSelect');
-            select.innerHTML = '<option value="">-- Select a Server --</option>';
+            select.innerHTML = '<option value="" style="color: #334155;">-- Select a Server --</option>';
+
             servers.forEach(server => {
                 const option = document.createElement('option');
-                option.value = server;
-                option.textContent = server;
+                option.value = server.alias;
+                option.textContent = server.is_disabled ? `${server.alias} (Disabled)` : server.alias;
+
+                // Track disabled state
+                option.dataset.disabled = server.is_disabled;
+                if(server.is_disabled) {
+                    option.style.color = '#94a3b8'; // Silver for disabled
+                } else {
+                    option.style.color = '#334155'; // HARDCODE dark text for enabled to prevent inheritance bug!
+                }
+
                 select.appendChild(option);
             });
             if(autoSelectAlias) {
@@ -1086,15 +1126,34 @@ function loadServerDropdown(autoSelectAlias = null) {
 }
 
 function handleServerSelection() {
-    const selected = document.getElementById('serverSelect').value;
+    const select = document.getElementById('serverSelect');
+    const selected = select.value;
     const editBtn = document.getElementById('editServerBtn');
     const delBtn = document.getElementById('deleteServerBtn');
+    const refreshBtn = document.getElementById('refreshBtn');
+
     if (selected) {
         editBtn.disabled = false;
         delBtn.disabled = false;
+
+        const selectedOption = select.options[select.selectedIndex];
+        const isDisabled = selectedOption.dataset.disabled === 'true';
+
+        if (isDisabled) {
+            refreshBtn.disabled = true;
+            refreshBtn.title = "Enable this server to scan";
+            select.style.color = '#94a3b8';
+        } else {
+            refreshBtn.disabled = false;
+            refreshBtn.title = "";
+            select.style.color = '#334155';
+        }
     } else {
         editBtn.disabled = true;
         delBtn.disabled = true;
+        refreshBtn.disabled = false;
+        refreshBtn.title = "";
+        select.style.color = '#334155';
     }
 }
 
@@ -1104,12 +1163,14 @@ function openAddServerModal(editMode = false) {
     const aliasInput = document.getElementById('newAlias');
     const passLabel = document.getElementById('passwordLabel');
     const passInput = document.getElementById('newPassword');
+    const disableCheckbox = document.getElementById('newIsDisabled');
 
     aliasInput.value = '';
     document.getElementById('newHost').value = '';
     document.getElementById('newPort').value = '';
     document.getElementById('newUser').value = '';
     passInput.value = '';
+    disableCheckbox.checked = false;
     aliasInput.readOnly = false;
 
     if (editMode) {
@@ -1128,6 +1189,7 @@ function openAddServerModal(editMode = false) {
                 document.getElementById('newHost').value = data.host || '';
                 document.getElementById('newPort').value = data.port || '';
                 document.getElementById('newUser').value = data.user || '';
+                disableCheckbox.checked = data.is_disabled || false;
             }
         });
     } else {
@@ -1149,6 +1211,7 @@ function submitServer() {
     const port = document.getElementById('newPort').value.trim();
     const user = document.getElementById('newUser').value.trim();
     const password = document.getElementById('newPassword').value.trim();
+    const is_disabled = document.getElementById('newIsDisabled').checked;
 
     if (!alias || !host || !user) return showToast("Alias, Host, and Username are required fields.", "error");
     if (!isEditingMode && !password) return showToast("Password is required for new servers.", "error");
@@ -1157,7 +1220,7 @@ function submitServer() {
     btn.innerHTML = '<span class="spinner spinner-dark" style="border-top-color: white; border-color: rgba(255,255,255,0.3);"></span> Saving...';
     btn.disabled = true;
 
-    const serverData = { alias, host, port, type: "sqlserver", user, password };
+    const serverData = { alias, host, port, type: "sqlserver", user, password, is_disabled };
     if (isEditingMode) {
         serverData.original_alias = currentEditAlias;
     }
@@ -1248,10 +1311,30 @@ function checkSecurityDB() {
     document.getElementById('securityBtn').disabled = !db;
 }
 
-function refreshGhostCache() {
+// --- NEW CACHE REFRESH LOGIC ---
+function confirmRefreshCache(type) {
     const server = document.getElementById('serverSelect').value;
     if(!server) return showToast("Select a server first.", "error");
 
+    currentRefreshType = type;
+    document.getElementById('refreshConfirmModal').style.display = 'block';
+
+    document.getElementById('executeRefreshBtn').onclick = function() {
+        closeRefreshConfirmModal();
+        if (currentRefreshType === 'ghost') {
+            executeRefreshGhost();
+        } else if (currentRefreshType === 'index') {
+            executeRefreshIndex();
+        }
+    };
+}
+
+function closeRefreshConfirmModal() {
+    document.getElementById('refreshConfirmModal').style.display = 'none';
+}
+
+function executeRefreshGhost() {
+    const server = document.getElementById('serverSelect').value;
     const btn = document.getElementById('refreshGhostBtn');
     btn.innerHTML = '<span class="spinner spinner-dark"></span>';
     btn.disabled = true;
@@ -1266,6 +1349,33 @@ function refreshGhostCache() {
         btn.disabled = false;
         if(data.success) {
             showToast("Ghost Table Cache Updated!");
+            fetchMetrics(); // Reload to show new cached data
+        } else {
+            showToast(data.error || "Error updating cache", "error");
+        }
+    }).catch(e => {
+        btn.innerHTML = '🔄 Refresh Cache';
+        btn.disabled = false;
+        showToast("Network Error", "error");
+    });
+}
+
+function executeRefreshIndex() {
+    const server = document.getElementById('serverSelect').value;
+    const btn = document.getElementById('refreshIndexBtn');
+    btn.innerHTML = '<span class="spinner spinner-dark"></span>';
+    btn.disabled = true;
+    document.getElementById('indexCacheTime').innerText = "Scanning live database...";
+
+    fetch('/api/indexes/refresh_cache', {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({server: server})
+    }).then(r => r.json()).then(data => {
+        btn.innerHTML = '🔄 Refresh Cache';
+        btn.disabled = false;
+        if(data.success) {
+            showToast("Index Cache Updated!");
             fetchMetrics(); // Reload to show new cached data
         } else {
             showToast(data.error || "Error updating cache", "error");
@@ -1648,12 +1758,15 @@ function fetchMetrics() {
             const tsContainer = document.getElementById('tableStatsContainer');
             if (data.table_usage_stats && data.table_usage_stats.length > 0) {
                 tsContainer.style.display = 'block';
-                document.getElementById('tableCacheTime').innerText = "Last scan: " + (data.table_cache_time || 'Just now');
+                document.getElementById('tableCacheTime').innerText = "Last scan: " + (data.table_cache_time || 'Never');
                 ghostDataStore = data.table_usage_stats;
                 renderNextGhostChunk();
             } else {
                 tsContainer.style.display = 'none';
             }
+
+            // Set Index Cache Time
+            document.getElementById('indexCacheTime').innerText = "Last scan: " + (data.index_cache_time || 'Never');
 
             // Drives
             const driveTbody = document.getElementById('driveTableBody');
