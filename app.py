@@ -54,6 +54,15 @@ class TableStatsCache(db.Model):
     last_seek = db.Column(db.String(50))
     last_scanned = db.Column(db.DateTime, default=datetime.datetime.utcnow)
 
+class DatabasePurgeCache(db.Model):
+    id = db.Column(db.Integer, primary_key=True)
+    server_alias = db.Column(db.String(100), index=True)
+    db_name = db.Column(db.String(100))
+    total_tables = db.Column(db.Integer)
+    dead_tables = db.Column(db.Integer)
+    action_plan = db.Column(db.String(200))
+    last_scanned = db.Column(db.DateTime, default=datetime.datetime.utcnow)
+
 # ==========================================
 # 🔐 ADMIN CREDENTIALS & ENCRYPTION
 # ==========================================
@@ -522,7 +531,7 @@ def get_metrics():
             except Exception:
                 brute_force_logs = []
 
-            # --- 🚀 NEW: LIVE, ULTRA-FAST DATABASE PURGE METRICS ---
+            # --- 🚀 LIVE, ULTRA-FAST DATABASE PURGE METRICS ---
             db_purge_live_query = text("""
             WITH AggregateUsage AS (
                 SELECT 
@@ -543,7 +552,7 @@ def get_metrics():
                      AND (u.MaxScan IS NULL OR u.MaxScan <= '2024-12-31') 
                      AND (u.MaxSeek IS NULL OR u.MaxSeek <= '2024-12-31') 
                      AND (u.MaxLookup IS NULL OR u.MaxLookup <= '2024-12-31') 
-                    THEN 'SAFE TO RENAME/DETACH (Monitor 1-2 Weeks)'
+                    THEN 'SAFE TO RENAME/DETACH'
                     ELSE 'ACTIVE: DB has activity'
                 END AS ActionPlan
             FROM sys.databases d
