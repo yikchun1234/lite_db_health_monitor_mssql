@@ -117,7 +117,7 @@ def get_target_engine(alias):
 def perform_table_scan(server, engine, force=False):
     """Executes the cross-database Ghost Table query and updates the SQLite cache."""
     
-    # --- 🛡️ NEW: 7-DAY CACHE BYPASS LOGIC ---
+    # --- 🛡️ 7-DAY CACHE BYPASS LOGIC ---
     if not force:
         latest_cache = TableStatsCache.query.filter_by(server_alias=server.alias).order_by(TableStatsCache.last_scanned.desc()).first()
         if latest_cache:
@@ -268,7 +268,7 @@ def perform_index_scan(server, engine):
                 if latest_cache:
                     time_since_scan = datetime.datetime.utcnow() - latest_cache.last_scanned
                     if time_since_scan.total_seconds() < (167 * 3600): # Skip if newer than 7 days
-                        print(f"     [⏭️] Skipping Index Scan for: {db_name}")
+                        print(f"     [⏭️] Skipping Index Scan for: {db_name} (Cache is active)")
                         continue
 
                 print(f"     [🔎] Scanning Indexes: {db_name} (Throttled Mode)...")
@@ -296,6 +296,8 @@ def perform_index_scan(server, engine):
                         db.session.commit()
                         
                         current_time = datetime.datetime.utcnow()
+                        found_fragmentation = False
+                        
                         for t in targets:
                             try:
                                 scan_query = f"""
@@ -307,6 +309,7 @@ def perform_index_scan(server, engine):
                                 res = cursor.fetchone()
                                 
                                 if res:
+                                    found_fragmentation = True
                                     new_idx = IndexCache(server_alias=server.alias, db_name=db_name, table_name=t.TableName, index_name=t.IndexName, fragmentation=res.Fragmentation, page_count=res.PageCount, last_scanned=current_time)
                                     db.session.add(new_idx)
                                     db.session.commit()
@@ -318,6 +321,20 @@ def perform_index_scan(server, engine):
                                 print(f"     [!] Error processing {db_name}: {str(e)}")
                                 db.session.rollback()
                                 continue
+                                
+                        # --- 🛡️ WRITE A CLEAN MARKER IF THE DB IS HEALTHY ---
+                        if not found_fragmentation:
+                            clean_marker = IndexCache(
+                                server_alias=server.alias, 
+                                db_name=db_name, 
+                                table_name="[System_Clean]", 
+                                index_name="[No_Fragmentation]", 
+                                fragmentation=0.0, 
+                                page_count=0, 
+                                last_scanned=current_time
+                            )
+                            db.session.add(clean_marker)
+                            db.session.commit()
                                 
                 except Exception as e:
                     print(f"  [!] Error connecting to {server.alias}: {str(e)}")
@@ -621,7 +638,6 @@ def refresh_table_cache():
     engine = get_target_engine(server_alias)
     if not server or not engine: return jsonify({"error": "Server connection invalid"}), 400
     
-    # --- 🛡️ NEW: FORCE FLAG ADDED ---
     perform_table_scan(server, engine, force=True) 
     
     return jsonify({"success": True})
@@ -657,7 +673,8 @@ def get_indexes():
     cached_results = query.all()
     
     if cached_results:
-        indexes = [{"table": r.table_name, "index": r.index_name, "fragmentation": r.fragmentation, "pages": r.page_count} for r in cached_results]
+        # Ignore the healthy system marker when displaying to the user
+        indexes = [{"table": r.table_name, "index": r.index_name, "fragmentation": r.fragmentation, "pages": r.page_count} for r in cached_results if r.table_name != "[System_Clean]"]
         return jsonify({"indexes": indexes, "cached": True})
         
     engine = get_target_engine(server_name)
