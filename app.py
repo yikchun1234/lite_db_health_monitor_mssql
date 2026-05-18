@@ -115,6 +115,7 @@ def get_target_engine(alias):
 # ⏱️ BACKGROUND SCANNER LOGIC
 # ==========================================
 def perform_table_scan(server, engine, force=False):
+    """Executes the cross-database Ghost Table query and updates the SQLite cache."""
     if not force:
         latest_cache = TableStatsCache.query.filter_by(server_alias=server.alias).order_by(TableStatsCache.last_scanned.desc()).first()
         if latest_cache:
@@ -209,6 +210,7 @@ def perform_table_scan(server, engine, force=False):
         db.session.rollback()
 
 def perform_index_scan(server, engine):
+    """Executes the throttled Index Fragmentation scan and updates the SQLite cache."""
     try:
         with engine.connect() as conn:
             dbs = conn.execute(text("SELECT name FROM sys.databases WHERE database_id > 4 AND state_desc = 'ONLINE'")).mappings()
@@ -575,7 +577,6 @@ def get_metrics():
                 vlf_query = text("SELECT DB_NAME(database_id) AS DatabaseName, COUNT(*) AS Total_VLF_Count, SUM(CASE WHEN vlf_active = 1 THEN 1 ELSE 0 END) AS Active_VLF_Count FROM sys.dm_db_log_info(NULL) GROUP BY database_id ORDER BY Total_VLF_Count DESC;")
                 vlfs = [{"database": r['DatabaseName'], "total": int(r['Total_VLF_Count']), "active": int(r['Active_VLF_Count'])} for r in conn.execute(vlf_query).mappings()]
             except Exception as e:
-                # Silently catch on older SQL Server versions (pre-2016 SP2) that don't have dm_db_log_info
                 pass
 
             # 3. High-Impact Memory Clerks
