@@ -770,10 +770,10 @@ if __name__ == '__main__':
     scheduler.add_job(func=master_background_scan, trigger="interval", days=7, next_run_time=datetime.datetime.now())
     scheduler.start()
 
-	# Comment out or delete the old Flask dev server
-        # app.run(host='0.0.0.0', port=5000, threaded=True)
+    # Comment out or delete the old Flask dev server
+    # app.run(host='0.0.0.0', port=5000, threaded=True)
         
-        # Use Waitress for production instead
-        from waitress import serve
-        print("Starting production server on http://0.0.0.0:5000")
-        serve(app, host='0.0.0.0', port=5000)
+    # Use Waitress for production instead
+    from waitress import serve
+    print("Starting production server on http://0.0.0.0:5000")
+    serve(app, host='0.0.0.0', port=5000)
