@@ -645,27 +645,60 @@ def get_metrics():
 @app.route('/api/tables/refresh_cache', methods=['POST'])
 @login_required
 def refresh_table_cache():
-    server_alias = request.json.get('server')
-    if not server_alias: return jsonify({"error": "No server specified"}), 400
+    data = request.json
+    server_alias = data.get('server')
+    is_global = data.get('is_global', False)
+    current = data.get('current', '?')
+    total = data.get('total', '?')
+
+    if not server_alias:
+        return jsonify({"error": "No server specified"}), 400
     
     server = ServerConfig.query.filter_by(alias=server_alias).first()
     engine = get_target_engine(server_alias)
-    if not server or not engine: return jsonify({"error": "Server connection invalid"}), 400
+    if not server or not engine:
+        return jsonify({"error": "Server connection invalid"}), 400
+
+    # Print formatting to the .bat console
+    now = datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S')
+    if is_global:
+        print(f"\n[{now}] [Update Global Cache] [{current}/{total}] 👻 Syncing Ghost Tables for: {server_alias}...")
+    else:
+        print(f"\n[{now}] [Targeted Scan] 👻 Syncing Ghost Tables for: {server_alias}...")
+
+    perform_table_scan(server, engine, force=True)
     
-    perform_table_scan(server, engine, force=True) 
+    print(f"[{datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S')}] ✅ Completed Ghost Table Scan for {server_alias}.")
     return jsonify({"success": True})
+
 
 @app.route('/api/indexes/refresh_cache', methods=['POST'])
 @login_required
 def refresh_index_cache():
-    server_alias = request.json.get('server')
-    if not server_alias: return jsonify({"error": "No server specified"}), 400
+    data = request.json
+    server_alias = data.get('server')
+    is_global = data.get('is_global', False)
+    current = data.get('current', '?')
+    total = data.get('total', '?')
+
+    if not server_alias:
+        return jsonify({"error": "No server specified"}), 400
     
     server = ServerConfig.query.filter_by(alias=server_alias).first()
     engine = get_target_engine(server_alias)
-    if not server or not engine: return jsonify({"error": "Server connection invalid"}), 400
+    if not server or not engine:
+        return jsonify({"error": "Server connection invalid"}), 400
+
+    # Print formatting to the .bat console
+    now = datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S')
+    if is_global:
+        print(f"\n[{now}] [Update Global Cache] [{current}/{total}] ⚡ Syncing Indexes for: {server_alias}...")
+    else:
+        print(f"\n[{now}] [Targeted Scan] ⚡ Syncing Indexes for: {server_alias}...")
+
+    perform_index_scan(server, engine, force=True)
     
-    perform_index_scan(server, engine, force=True) 
+    print(f"[{datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S')}] ✅ Completed Index Scan for {server_alias}.")
     return jsonify({"success": True})
 
 # ---------- FETCH TABLES ----------
