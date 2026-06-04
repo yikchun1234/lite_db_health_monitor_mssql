@@ -311,12 +311,26 @@
 
         /* --- GHOST TABLE SPECIAL UI --- */
         .sticky-header th { position: sticky; top: 0; background-color: #f8fafc; z-index: 2; box-shadow: 0 1px 2px rgba(0,0,0,0.1); }
-        .load-more-footer { display: flex; justify-content: space-between; align-items: center; background: #f8fafc; padding: 15px; border-top: 1px solid var(--border); border-radius: 0 0 8px 8px; }
+        .load-more-footer { display: flex; justify-content: space-between; align-items: center; background: #f8fafc; padding: 15px; border-top: 1px solid var(--border); border-radius: 0 0 8px 8px; } 
+
+        /* --- QUICK NAV FAB --- */
+        .fab-container { position: fixed; bottom: 35px; right: 35px; z-index: 1500; display: flex; flex-direction: column; align-items: flex-end; }
+        .fab-menu { background: rgba(255, 255, 255, 0.95); backdrop-filter: blur(12px); border: 1px solid var(--border); border-radius: 12px; box-shadow: 0 10px 25px rgba(0,0,0,0.15); padding: 10px 0; margin-bottom: 15px; display: flex; flex-direction: column; max-height: 60vh; overflow-y: auto; opacity: 0; visibility: hidden; transform: translateY(20px) scale(0.95); transition: all 0.3s var(--bezier-smooth); transform-origin: bottom right; min-width: 250px; }
+        .fab-menu::-webkit-scrollbar { width: 6px; }
+        .fab-menu::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 4px; }
+        .fab-menu.open { opacity: 1; visibility: visible; transform: translateY(0) scale(1); }
+        .fab-menu-item { padding: 10px 20px; font-size: 13px; font-weight: 600; color: #475569; cursor: pointer; transition: all 0.2s; white-space: nowrap; text-align: left; border-left: 3px solid transparent; }
+        .fab-menu-item:hover { background: #f1f5f9; color: var(--primary); border-left-color: var(--primary); }
+        .fab-button { width: 56px; height: 56px; min-width: 56px; border-radius: 50%; font-size: 22px; padding: 0; box-shadow: 0 6px 15px rgba(14, 165, 233, 0.3); display: flex; align-items: center; justify-content: center; transition: all 0.3s var(--bezier-smooth); }
+        .fab-button:hover { transform: scale(1.1) rotate(15deg); box-shadow: 0 8px 20px rgba(14, 165, 233, 0.5); }
 
     </style>
 </head>
-<body>
-
+<body> 
+<div id="quickNavFab" class="fab-container" style="display: none;">
+    <div id="quickNavMenu" class="fab-menu"></div>
+    <button class="fab-button" onclick="toggleQuickNav()" title="Quick Navigation">🧭</button>
+</div>
 <div id="toastContainer"></div>
 
 {% if not logged_in %}
@@ -381,7 +395,56 @@ function showToast(message, type = 'success') {
     }, 3500);
 }
 
-function openAboutModal() { document.getElementById('aboutModal').style.display = 'block'; }
+function toggleQuickNav() {
+    document.getElementById('quickNavMenu').classList.toggle('open');
+}
+
+document.addEventListener('click', function(e) {
+    const fab = document.getElementById('quickNavFab');
+    if (fab && !fab.contains(e.target)) {
+        document.getElementById('quickNavMenu').classList.remove('open');
+    }
+});
+
+function buildQuickNav() {
+    const menu = document.getElementById('quickNavMenu');
+    menu.innerHTML = ''; 
+    const cards = document.querySelectorAll('#dashboardContent .card');
+    let hasItems = false;
+
+    cards.forEach((card, index) => {
+        if (window.getComputedStyle(card).display !== 'none' && !card.classList.contains('header-card')) {
+            const titleEl = card.querySelector('h3');
+            if (titleEl) {
+                hasItems = true;
+                if (!card.id) card.id = 'dash-card-' + index;
+                
+                const item = document.createElement('div');
+                item.className = 'fab-menu-item';
+                item.innerText = titleEl.innerText; // Grabs the text + emoji
+                item.onclick = () => {
+                    const headerOffset = 100; // Accounts for sticky header
+                    const offsetPosition = card.getBoundingClientRect().top + window.pageYOffset - headerOffset;
+                    window.scrollTo({ top: offsetPosition, behavior: 'smooth' });
+                    toggleQuickNav(); 
+                };
+                menu.appendChild(item);
+            }
+        }
+    });
+
+    if (hasItems) {
+        document.getElementById('quickNavFab').style.display = 'flex';
+    } else {
+        document.getElementById('quickNavFab').style.display = 'none';
+        document.getElementById('quickNavMenu').classList.remove('open');
+    }
+}
+
+function openAboutModal() { 
+    document.getElementById('aboutModal').style.display = 'block'; 
+}
+    
 function closeAboutModal() { document.getElementById('aboutModal').style.display = 'none'; }
 
 function attemptLogin() {
@@ -1994,13 +2057,14 @@ function fetchMetrics() {
                 card.style.animation = 'none';
                 void card.offsetWidth;
                 card.style.animation = null;
-
                 if (card.style.display !== 'none' && !card.classList.contains('header-card')) {
                     card.style.animationDelay = delay + 's';
                     delay += 0.08;
                 }
             });
-
+            
+            // Build the dynamic navigation menu based on visible cards
+            setTimeout(() => buildQuickNav(), 300);
         })
         .catch(err => {
             if (window.loadingInterval) clearInterval(window.loadingInterval);
