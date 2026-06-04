@@ -997,14 +997,16 @@ function attemptLogin() {
                     </div>
                 </div>
                 <p style="color: #64748b; font-size: 13px; margin-top: 5px; margin-bottom: 15px;">Now utilizes a backend SQLite cache to guarantee zero-impact to production SQL Server performance!</p>
-                <div class="controls" style="justify-content: flex-start;">
-                    <select id="dbIndexSelect" disabled onchange="fetchTablesForIndex()">
-                        <option value="">-- Select a Database --</option>
+                <div class="controls" style="justify-content: flex-start; align-items: flex-start;">
+                    <select id="dbIndexSelect" disabled multiple onchange="handleIndexDbSelection()" style="height: auto; min-height: 120px; padding: 8px;">
                     </select>
-                    <select id="tableIndexSelect" disabled>
-                        <option value="all">-- All Tables --</option>
-                    </select>
-                    <button id="indexBtn" class="btn-success" onclick="fetchIndexes()" disabled>Load Indexes</button>
+                    <div style="display: flex; flex-direction: column; gap: 10px;">
+                        <select id="tableIndexSelect" disabled>
+                            <option value="all">-- All Tables --</option>
+                        </select>
+                        <button id="indexBtn" class="btn-success" onclick="fetchIndexes()" disabled>Load Indexes</button>
+                        <span style="font-size: 11px; color: #64748b;">* Hold Ctrl/Cmd to select multiple databases</span>
+                    </div>
                 </div>
                 <div id="indexResults" style="display: none; margin-top: 20px;">
                     <div style="text-align: right; margin-bottom: 5px; font-size: 12px; color: #64748b;" id="cacheStatusText"></div>
@@ -1028,11 +1030,13 @@ function attemptLogin() {
             <div class="card">
                 <h3>🔐 Post-Restore Security Validator</h3>
                 <p style="color: #64748b; font-size: 13px; margin-top: -10px; margin-bottom: 15px;">Identify broken (orphaned) users and review all db_owner admins.</p>
-                <div class="controls" style="justify-content: flex-start;">
-                    <select id="dbSecuritySelect" disabled onchange="checkSecurityDB()">
-                        <option value="">-- Select a Database --</option>
+                <div class="controls" style="justify-content: flex-start; align-items: flex-start;">
+                    <select id="dbSecuritySelect" disabled multiple onchange="checkSecurityDB()" style="height: auto; min-height: 120px; padding: 8px;">
                     </select>
-                    <button id="securityBtn" class="btn-indigo" onclick="fetchSecurity()" disabled>Validate Security</button>
+                    <div style="display: flex; flex-direction: column; gap: 10px;">
+                        <button id="securityBtn" class="btn-indigo" onclick="fetchSecurity()" disabled>Validate Security</button>
+                        <span style="font-size: 11px; color: #64748b;">* Hold Ctrl/Cmd to select multiple databases</span>
+                    </div>
                 </div>
                 <div id="securityResults" style="display: none; margin-top: 20px;">
                     <h4 style="color: #dc2626; margin-bottom: 5px;">Orphaned Users (Broken Access)</h4>
@@ -1040,6 +1044,7 @@ function attemptLogin() {
                         <table>
                             <thead>
                                 <tr>
+                                    <th>Database</th>
                                     <th>User Name <span class="info-icon has-tooltip" data-tooltip="<strong>Orphaned User:</strong> This user is mapped inside the database, but their master server-level login is broken or missing. The app using this account will FAIL to connect.<br><br><em>Fix:</em> <code>EXEC sp_change_users_login 'Auto_Fix', 'UserName'</code>">?</span></th>
                                     <th>Account Type <span class="info-icon has-tooltip" data-tooltip="SQL Login or Windows Identity.">?</span></th>
                                 </tr>
@@ -1047,11 +1052,13 @@ function attemptLogin() {
                             <tbody id="orphanedTableBody"></tbody>
                         </table>
                     </div>
+        
                     <h4 style="color: #0ea5e9; margin-bottom: 5px;">Database Owners (Full Admin Access)</h4>
                     <div class="table-responsive">
                         <table>
                             <thead>
                                 <tr>
+                                    <th>Database</th>
                                     <th>User Name <span class="info-icon has-tooltip" data-tooltip="Users with the <strong>db_owner</strong> role. They can drop tables, delete data, and bypass all permissions inside this specific database. Ensure only authorized users are on this list!">?</span></th>
                                     <th>Account Type <span class="info-icon has-tooltip" data-tooltip="SQL Login or Windows Identity.">?</span></th>
                                 </tr>
@@ -1483,944 +1490,80 @@ function setToolsEnabled(enabled) {
 }
 
 function checkSecurityDB() {
-    const db = document.getElementById('dbSecuritySelect').value;
-    document.getElementById('securityBtn').disabled = !db;
+    const selected = Array.from(document.getElementById('dbSecuritySelect').selectedOptions);
+    document.getElementById('securityBtn').disabled = selected.length === 0;
 }
 
 // --- TARGETED CACHE REFRESH LOGIC ---
-function confirmRefreshCache(type) {
-    const server = document.getElementById('serverSelect').value;
-    if(!server) return showToast("Select a server first.", "error");
+function confirmRefreshCache(type) {const server = document.getElementById('serverSelect').value; if(!server) return showToast("Select a server first.", "error"); currentRefreshType = type; document.getElementById('refreshConfirmModal').style.display = 'block'; document.getElementById('executeRefreshBtn').onclick = function() {closeRefreshConfirmModal(); if (currentRefreshType === 'ghost') {executeRefreshGhost(); } else if (currentRefreshType === 'index') {executeRefreshIndex(); } }; }
+function closeRefreshConfirmModal() {document.getElementById('refreshConfirmModal').style.display = 'none'; }
+function executeRefreshGhost() {const server = document.getElementById('serverSelect').value; showToast("Starting live scan for Ghost Tables...", "info"); fetch('/api/tables/refresh_cache', {method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({server: server}) }).then(r => r.json()).then(data => {if(data.success) {showToast("Ghost Table Cache Updated!"); fetchMetrics(); } else {showToast(data.error || "Error updating cache", "error"); } }).catch(e => {showToast("Network Error", "error"); }); }
+function executeRefreshIndex() {const server = document.getElementById('serverSelect').value; showToast("Starting live scan for Index Fragmentation...", "info"); fetch('/api/indexes/refresh_cache', {method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({server: server}) }).then(r => r.json()).then(data => {if(data.success) {showToast("Index Cache Updated!"); fetchMetrics(); } else {showToast(data.error || "Error updating cache", "error"); } }).catch(e => {showToast("Network Error", "error"); }); }
 
-    currentRefreshType = type;
-    document.getElementById('refreshConfirmModal').style.display = 'block';
-
-    document.getElementById('executeRefreshBtn').onclick = function() {
-        closeRefreshConfirmModal();
-        if (currentRefreshType === 'ghost') {
-            executeRefreshGhost();
-        } else if (currentRefreshType === 'index') {
-            executeRefreshIndex();
-        }
-    };
-}
-
-function closeRefreshConfirmModal() {
-    document.getElementById('refreshConfirmModal').style.display = 'none';
-}
-
-function executeRefreshGhost() {
-    const server = document.getElementById('serverSelect').value;
-    showToast("Starting live scan for Ghost Tables...", "info");
-
-    fetch('/api/tables/refresh_cache', {
-        method: 'POST',
-        headers: {'Content-Type': 'application/json'},
-        body: JSON.stringify({server: server})
-    }).then(r => r.json()).then(data => {
-        if(data.success) {
-            showToast("Ghost Table Cache Updated!");
-            fetchMetrics();
-        } else {
-            showToast(data.error || "Error updating cache", "error");
-        }
-    }).catch(e => {
-        showToast("Network Error", "error");
-    });
-}
-
-function executeRefreshIndex() {
-    const server = document.getElementById('serverSelect').value;
-    showToast("Starting live scan for Index Fragmentation...", "info");
-
-    fetch('/api/indexes/refresh_cache', {
-        method: 'POST',
-        headers: {'Content-Type': 'application/json'},
-        body: JSON.stringify({server: server})
-    }).then(r => r.json()).then(data => {
-        if(data.success) {
-            showToast("Index Cache Updated!");
-            fetchMetrics();
-        } else {
-            showToast(data.error || "Error updating cache", "error");
-        }
-    }).catch(e => {
-        showToast("Network Error", "error");
-    });
-}
-
-// --- GLOBAL SYNC BATCH PROCESSOR ---
-function openGlobalSyncModal() {
-    document.getElementById('globalSyncModal').style.display = 'block';
-}
-
-function closeGlobalSyncModal() {
-    document.getElementById('globalSyncModal').style.display = 'none';
-}
-
-function toggleAllPdfOptions() {
-    const checkboxes = document.querySelectorAll('.pdf-option-cb');
-    const btn = document.getElementById('pdfSelectAllBtn');
-    const isSelectingAll = btn.innerText === 'Select All';
-    
-    checkboxes.forEach(cb => {
-        cb.checked = isSelectingAll;
-        cb.dispatchEvent(new Event('change')); // Trigger dropdown toggles
-    });
-    
-    btn.innerText = isSelectingAll ? 'Deselect All' : 'Select All';
-}
-
-function openPdfModal() {
-    document.body.style.overflow = 'hidden'; // Lock background scrolling
-    const container = document.getElementById('pdfOptionsContainer');
-    container.innerHTML = '';
-    
-    // Inject Select All Button
-    const selectAllContainer = document.createElement('div');
-    selectAllContainer.style.marginBottom = '15px';
-    selectAllContainer.style.textAlign = 'right';
-    selectAllContainer.innerHTML = `<button class="btn-page" onclick="toggleAllPdfOptions()" id="pdfSelectAllBtn" style="cursor:pointer; font-weight:bold;">Select All</button>`;
-    container.appendChild(selectAllContainer);
-
-    const cards = document.querySelectorAll('#dashboardContent .card');
-    let count = 0;
-    
-    cards.forEach((card, index) => {
-        if (window.getComputedStyle(card).display !== 'none' && !card.classList.contains('header-card')) {
-            const titleEl = card.querySelector('h3');
-            if (titleEl) {
-                if (!card.id) card.id = 'dash-card-' + index;
-                const label = document.createElement('label');
-                label.className = 'checkbox-container';
-                label.style.marginBottom = '8px';
-                label.style.display = 'flex';
-                label.style.justifyContent = 'space-between';
-                
-                const leftDiv = document.createElement('div');
-                leftDiv.style.display = 'flex';
-                leftDiv.style.alignItems = 'center';
-                leftDiv.style.gap = '10px';
-
-                const checkbox = document.createElement('input');
-                checkbox.type = 'checkbox';
-                checkbox.value = card.id;
-                checkbox.className = 'pdf-option-cb';
-                checkbox.checked = false; // Unticked by default
-                
-                const span = document.createElement('span');
-                span.innerText = titleEl.innerText;
-                
-                leftDiv.appendChild(checkbox);
-                leftDiv.appendChild(span);
-                label.appendChild(leftDiv);
-
-                // Inject dynamic dropdowns for Index and Security
-                if (titleEl.innerText.includes("Index Fragmentation") || titleEl.innerText.includes("Post-Restore Security")) {
-                    const dbSelect = document.createElement('select');
-                    dbSelect.className = 'pdf-db-select';
-                    dbSelect.id = 'pdf-db-' + card.id;
-                    dbSelect.style.height = '30px';
-                    dbSelect.style.fontSize = '12px';
-                    dbSelect.style.minWidth = '150px';
-                    dbSelect.style.padding = '0 10px';
-                    
-                    const mainSelect = document.getElementById('dbIndexSelect');
-                    if (mainSelect) dbSelect.innerHTML = mainSelect.innerHTML;
-                    
-                    dbSelect.disabled = true; // Disabled until checkbox is ticked
-                    checkbox.addEventListener('change', () => { 
-                        dbSelect.disabled = !checkbox.checked; 
-                    });
-                    label.appendChild(dbSelect);
-                }
-
-                container.appendChild(label);
-                count++;
-            }
-        }
-    });
-    
-    if(count === 0) {
-        document.body.style.overflow = 'auto';
-        return showToast("No data to export. Refresh dashboard first.", "error");
-    }
-    document.getElementById('pdfModal').style.display = 'block';
-}
-
-function closePdfModal() {
-    document.body.style.overflow = 'auto'; // Unlock background scrolling
-    document.getElementById('pdfModal').style.display = 'none';
-}
-
-async function generatePDF() {
-    const selectedIds = Array.from(document.querySelectorAll('.pdf-option-cb:checked')).map(cb => cb.value);
-    if (selectedIds.length === 0) return showToast("Please select at least one category.", "warning");
-    
-    const btn = document.getElementById('generatePdfBtn');
-    btn.innerHTML = '<span class="spinner spinner-dark" style="border-top-color: white;"></span> Building Document...';
-    btn.disabled = true;
-    
-    const serverName = document.getElementById('serverSelect').value;
-
-    // --- FETCH CUSTOM DB DATA FOR PDF ---
-    let customIndexData = null;
-    let customSecurityData = null;
-    let customIndexDb = '';
-    let customSecurityDb = '';
-
-    for (let id of selectedIds) {
-        const card = document.getElementById(id);
-        const title = card.querySelector('h3').innerText;
-        
-        if (title.includes("Index Fragmentation")) {
-            customIndexDb = document.getElementById('pdf-db-' + id).value;
-            if (!customIndexDb) {
-                btn.innerHTML = 'Generate PDF Document';
-                btn.disabled = false;
-                return showToast("Please select a database for Index Fragmentation.", "warning");
-            }
-            showToast("Fetching heavy Index cache. Generation will be slightly slower...", "info");
-            try {
-                const res = await fetch(`/api/indexes?server=${encodeURIComponent(serverName)}&db=${encodeURIComponent(customIndexDb)}&table=all`);
-                const data = await res.json();
-                customIndexData = data.indexes || [];
-            } catch (e) { console.error(e); }
-        }
-        
-        if (title.includes("Post-Restore Security")) {
-            customSecurityDb = document.getElementById('pdf-db-' + id).value;
-            if (!customSecurityDb) {
-                btn.innerHTML = 'Generate PDF Document';
-                btn.disabled = false;
-                return showToast("Please select a database for Security Validator.", "warning");
-            }
-            try {
-                const res = await fetch(`/api/security?server=${encodeURIComponent(serverName)}&db=${encodeURIComponent(customSecurityDb)}`);
-                customSecurityData = await res.json();
-            } catch (e) { console.error(e); }
-        }
-    }
-
-    const tempDiv = document.createElement('div');
-    tempDiv.style.padding = '20px';
-    tempDiv.style.backgroundColor = '#f0f2f5';
-    tempDiv.style.width = '1200px'; 
-    
-    const header = document.createElement('h2');
-    header.innerHTML = `📊 Database Health Report: ${serverName}`;
-    header.style.color = '#0f172a';
-    header.style.fontFamily = 'sans-serif';
-    header.style.borderBottom = '2px solid #cbd5e1';
-    header.style.paddingBottom = '10px';
-    tempDiv.appendChild(header);
-    
-    const timeP = document.createElement('p');
-    timeP.innerHTML = `Generated on: ${new Date().toLocaleString()}`;
-    timeP.style.color = '#64748b';
-    timeP.style.fontFamily = 'sans-serif';
-    timeP.style.marginBottom = '20px';
-    tempDiv.appendChild(timeP);
-
-    selectedIds.forEach(id => {
-        const originalCard = document.getElementById(id);
-        if (originalCard) {
-            const clone = originalCard.cloneNode(true);
-            const titleText = clone.querySelector('h3').innerText;
-            
-            // 1. Remove scroll constraints to show FULL tables
-            const scrollableDivs = clone.querySelectorAll('.table-responsive');
-            scrollableDivs.forEach(div => {
-                div.style.maxHeight = 'none';
-                div.style.overflowY = 'visible';
-                div.style.overflowX = 'visible';
-            });
-            
-            // 2. Inject ALL paginated data into Ghost Tables before printing
-            if (clone.querySelector('#tableStatsBody') && typeof ghostDataStore !== 'undefined') {
-                const tbody = clone.querySelector('#tableStatsBody');
-                tbody.innerHTML = ''; 
-                let allHtml = '';
-                ghostDataStore.forEach(ts => {
-                    let badgeClass = ts.status.includes('SAFE') ? 'badge-success' : (ts.status.includes('LOOK') ? 'badge-warning' : 'badge-danger');
-                    let readHtml = (ts.last_scan === 'Never' && ts.last_seek === 'Never') ? '<span class="badge badge-danger">Never</span>' : `<span style="font-size:12px;">Scan: ${ts.last_scan}<br>Seek: ${ts.last_seek}</span>`;
-                    let rowsBadge = ts.rows > 1000000 ? `<span class="badge badge-danger">${ts.rows.toLocaleString()}</span>` : `<span class="badge badge-neutral">${ts.rows.toLocaleString()}</span>`;
-                    allHtml += `<tr><td><strong>${ts.database}</strong></td><td>${ts.schema}.${ts.table}</td><td class="text-center"><span class="badge ${badgeClass}" style="font-size:10px; white-space:normal;">${ts.status}</span></td><td class="text-right">${rowsBadge}</td><td class="text-right">${ts.last_update}</td><td class="text-right">${readHtml}</td></tr>`;
-                });
-                tbody.innerHTML = allHtml;
-            }
-
-            // 3. Inject CUSTOM Index Data based on Modal Selection
-            if (titleText.includes("Index Fragmentation") && customIndexData !== null) {
-                clone.querySelector('h3').innerText = `⚡ Index Fragmentation (${customIndexDb})`;
-                const tbody = clone.querySelector('#indexTableBody');
-                if (tbody) {
-                    tbody.innerHTML = '';
-                    let allHtml = '';
-                    if (customIndexData.length === 0) {
-                        allHtml = "<tr><td colspan='4' class='text-center' style='padding: 30px; color: #10b981; font-weight: bold;'>✅ No highly fragmented large indexes found! System is healthy.</td></tr>";
-                    } else {
-                        customIndexData.forEach(idx => {
-                            let fragBadge = idx.fragmentation > 30 ? `<span class="badge badge-danger">${idx.fragmentation}%</span>` : `<span class="badge badge-warning">${idx.fragmentation}%</span>`;
-                            allHtml += `<tr><td><strong>${idx.table}</strong></td><td>${idx.index}</td><td class="text-right">${fragBadge}</td><td class="text-right">${idx.pages.toLocaleString()}</td></tr>`;
-                        });
-                    }
-                    tbody.innerHTML = allHtml;
-                }
-            }
-
-            // 4. Inject CUSTOM Security Data based on Modal Selection
-            if (titleText.includes("Post-Restore Security") && customSecurityData !== null) {
-                clone.querySelector('h3').innerText = `🔐 Post-Restore Security (${customSecurityDb})`;
-                const oTbody = clone.querySelector('#orphanedTableBody');
-                const owTbody = clone.querySelector('#ownerTableBody');
-                if (oTbody && owTbody && !customSecurityData.error) {
-                    oTbody.innerHTML = '';
-                    if (customSecurityData.orphaned.length === 0) {
-                        oTbody.innerHTML = "<tr><td colspan='2' class='text-center' style='padding: 15px; color: #10b981; font-weight: bold;'>✅ No orphaned users found. Access is secure!</td></tr>";
-                    } else {
-                        customSecurityData.orphaned.forEach(u => oTbody.innerHTML += `<tr><td><strong>${u.user}</strong> <span class="badge badge-danger">ORPHANED</span></td><td>${u.type}</td></tr>`);
-                    }
-
-                    owTbody.innerHTML = '';
-                    if (customSecurityData.owners.length === 0) {
-                        owTbody.innerHTML = "<tr><td colspan='2' class='text-center' style='padding: 15px; color: #64748b;'>No additional db_owners found.</td></tr>";
-                    } else {
-                        customSecurityData.owners.forEach(u => owTbody.innerHTML += `<tr><td><strong>${u.user}</strong></td><td><span class="badge badge-indigo">${u.type}</span></td></tr>`);
-                    }
-                }
-            }
-            
-            // Cleanup: remove footers, interactive tools, and UI inputs from the PDF clone
-            clone.querySelectorAll('.load-more-footer, .info-icon, button, select, #indexPagination, .controls').forEach(el => el.remove());
-            
-            tempDiv.appendChild(clone);
-        }
-    });
-    
-    // Generate YYYYMMDD date prefix
-    const d = new Date();
-    const yyyy = d.getFullYear();
-    const mm = String(d.getMonth() + 1).padStart(2, '0');
-    const dd = String(d.getDate()).padStart(2, '0');
-    const dateStr = `${yyyy}${mm}${dd}`;
-
-    const opt = {
-        margin:       [10, 10, 10, 10],
-        filename:     `${dateStr}_${serverName}_Health_Report.pdf`,
-        image:        { type: 'jpeg', quality: 0.98 },
-        html2canvas:  { scale: 2, useCORS: true, windowWidth: 1200 },
-        jsPDF:        { unit: 'mm', format: 'a3', orientation: 'landscape' } 
-    };
-    
-    html2pdf().set(opt).from(tempDiv).save().then(() => {
-        btn.innerHTML = 'Generate PDF Document';
-        btn.disabled = false;
-        closePdfModal();
-        showToast("PDF Exported Successfully!", "success");
-    }).catch(err => {
-        btn.innerHTML = 'Generate PDF Document';
-        btn.disabled = false;
-        showToast("Error generating PDF.", "error");
-    });
-}
-
-async function executeGlobalSync() {
-    const doGhost = document.getElementById('syncGhostCb').checked;
-    const doIndex = document.getElementById('syncIndexCb').checked;
-
-    if (!doGhost && !doIndex) {
-        return showToast("Please select at least one cache to sync.", "error");
-    }
-
-    closeGlobalSyncModal();
-
-    const btn = document.getElementById('globalSyncBtn');
-    const originalText = btn.innerHTML;
-
-    btn.innerHTML = '<span class="spinner spinner-dark" style="border-top-color:#ffffff;"></span> Syncing...';
-    btn.style.color = "white";
-    btn.style.background = "#8b5cf6";
-    btn.disabled = true;
-
-    try {
-        const res = await fetch('/api/databases');
-        const servers = await res.json();
-        const activeServers = servers.filter(s => !s.is_disabled);
-
-        if(activeServers.length === 0) {
-            showToast("No active servers found to scan.", "info");
-            btn.innerHTML = "🔄 Update Global Cache";
-            btn.style.background = "transparent";
-            btn.style.color = "#8b5cf6";
-            btn.disabled = false;
-            return;
-        }
-
-        showToast(`Starting global sync on ${activeServers.length} server(s)...`, "info");
-
-        for(let i=0; i < activeServers.length; i++) {
-            const s = activeServers[i];
-            showToast(`Scanning [${i+1}/${activeServers.length}]: ${s.alias}`, "info");
-
-            // --- ADDED: is_global, current, and total to the JSON body ---
-            if (doGhost) {
-                await fetch('/api/tables/refresh_cache', {
-                    method: 'POST',
-                    headers: {'Content-Type': 'application/json'},
-                    body: JSON.stringify({
-                        server: s.alias, 
-                        is_global: true, 
-                        current: i+1, 
-                        total: activeServers.length
-                    })
-                });
-            }
-            if (doIndex) {
-                await fetch('/api/indexes/refresh_cache', {
-                    method: 'POST',
-                    headers: {'Content-Type': 'application/json'},
-                    body: JSON.stringify({
-                        server: s.alias, 
-                        is_global: true, 
-                        current: i+1, 
-                        total: activeServers.length
-                    })
-                });
-            }
-        }
-
-        showToast(`✅ Successfully synced ${activeServers.length} server(s)!`, "success");
-
-        if(document.getElementById('serverSelect').value) {
-            fetchMetrics();
-        }
-
-    } catch (err) {
-        showToast("Network Error during bulk sync.", "error");
-    } finally {
-        btn.innerHTML = "🔄 Update Global Cache";
-        btn.style.background = "transparent";
-        btn.style.color = "#8b5cf6";
-        btn.disabled = false;
-    }
-}
-
-function fetchMetrics() {
-    const selectedServer = document.getElementById('serverSelect').value;
-    if (!selectedServer) return showToast("Please select a server first.", "error");
-
-    document.getElementById('mainHeaderCard').classList.remove('header-center-mode');
-    window.scrollTo({ top: 0, behavior: 'smooth' });
-
-    const btn = document.getElementById('refreshBtn');
-    let phraseIndex = 0;
-
-    btn.innerHTML = `<span class="spinner"></span> ${loadingPhrases[0]}`;
-    btn.disabled = true;
-
-    if (window.loadingInterval) clearInterval(window.loadingInterval);
-
-    window.loadingInterval = setInterval(() => {
-        phraseIndex++;
-        if (phraseIndex < loadingPhrases.length) {
-            btn.innerHTML = `<span class="spinner"></span> ${loadingPhrases[phraseIndex]}`;
-        }
-    }, 10000);
-
-    document.getElementById('results').style.display = 'block';
-    document.getElementById('connectionErrorContainer').style.display = 'none';
-
-    const dashboard = document.getElementById('dashboardContent');
-    if (dashboard.style.display === 'none') {
-        dashboard.style.display = 'block';
-    }
-    dashboard.style.opacity = '0.3';
-    dashboard.style.pointerEvents = 'none';
-    dashboard.style.transition = 'opacity 0.3s ease';
-
-    document.getElementById('serverVersion').innerText = 'Loading...';
-    document.getElementById('serverUptime').innerText = 'Loading...';
-
-    const idxBtn = document.getElementById('indexBtn');
-    idxBtn.innerHTML = "Load Indexes";
-    idxBtn.disabled = true;
-
-    const secBtn = document.getElementById('securityBtn');
-    secBtn.innerHTML = "Validate Security";
-    secBtn.disabled = true;
-
-    document.getElementById('exportPdfBtn').disabled = true;
-    setToolsEnabled(false);
-
+// ==========================================
+// TOOL: INDEX SCANNER (MULTI-SELECT)
+// ==========================================
+function handleIndexDbSelection() {
+    const selectedDBs = Array.from(document.getElementById('dbIndexSelect').selectedOptions).map(opt => opt.value);
+    const scanBtn = document.getElementById('indexBtn');
     const tableSelect = document.getElementById('tableIndexSelect');
-    tableSelect.innerHTML = '<option value="all">-- All Tables --</option>';
-    tableSelect.disabled = true;
 
-    ghostDataStore = [];
-    ghostCurrentIndex = 0;
-    const ghostScroll = document.getElementById('ghostTableScroll');
-    if (ghostScroll) ghostScroll.scrollTop = 0;
-
-    fetch(`/api/metrics?server=${encodeURIComponent(selectedServer)}`)
-        .then(response => response.json())
-        .then(data => {
-            if (window.loadingInterval) clearInterval(window.loadingInterval);
-
-            btn.innerHTML = "Refresh Dashboard";
-            btn.disabled = false;
-
-            dashboard.style.opacity = '1';
-            dashboard.style.pointerEvents = 'auto';
-
-            if (data.error) {
-                if(data.error.includes("Unauthorized")) {
-                    window.location.reload();
-                    return;
-                }
-                dashboard.style.display = 'none';
-                document.getElementById('connectionErrorContainer').style.display = 'block';
-                document.getElementById('connectionErrorText').textContent = data.error;
-                return;
-            }
-
-            const hideElements = ['alertBox', 'longQueriesContainer', 'failedJobsContainer', 'agContainer', 'indexResults', 'securityResults', 'corruptionContainer', 'errorLogContainer', 'connectionsContainer', 'missingIndexContainer', 'ramContainer', 'clerksContainer', 'planCacheContainer', 'vlfContainer', 'tempdbFilesWrapper', 'runningJobsContainer', 'ioLatencyContainer', 'bruteForceContainer', 'tableStatsContainer', 'dbPurgeContainer'];
-            hideElements.forEach(id => {
-                document.getElementById(id).style.display = 'none';
-            });
-
-            const clearBodies = ['indexTableBody', 'indexPagination', 'orphanedTableBody', 'ownerTableBody', 'corruptionBody', 'errorLogBody', 'connectionsBody', 'missingIndexBody', 'ramBody', 'clerksBody', 'planCacheBody', 'vlfBody', 'tempdbFilesBody', 'runningJobsBody', 'ioLatencyBody', 'bruteForceBody', 'tableStatsBody', 'waitStatsBody', 'tempdbBody', 'sysadminBody', 'restoreBody', 'dbTableBody', 'driveTableBody', 'dbPurgeBody'];
-            clearBodies.forEach(id => {
-                document.getElementById(id).innerHTML = '';
-            });
-
-            if(data.server_info) {
-                document.getElementById('serverVersion').innerText = data.server_info.version;
-                document.getElementById('serverUptime').innerText = `${data.server_info.uptime_days} Days (Started: ${data.server_info.start_time})`;
-            }
-
-            const alertBox = document.getElementById('alertBox');
-            const alertTitle = document.getElementById('alertTitle');
-            const alertList = document.getElementById('serverAlerts');
-            alertList.innerHTML = "";
-            if (data.server_level_alerts && data.server_level_alerts.length > 0) {
-                alertBox.style.display = 'block';
-                if (data.server_level_alerts[0].includes("System is entirely healthy")) {
-                    alertBox.className = "alerts alerts-healthy";
-                    alertTitle.innerHTML = "✅ Server Health Status";
-                } else {
-                    alertBox.className = "alerts";
-                    alertTitle.innerHTML = "⚠️ Critical Server Alerts";
-                }
-                data.server_level_alerts.forEach(alert => {
-                    let li = document.createElement('li');
-                    li.textContent = alert;
-                    alertList.appendChild(li);
-                });
-            }
-
-            const bfContainer = document.getElementById('bruteForceContainer');
-            const bfTbody = document.getElementById('bruteForceBody');
-            if(data.brute_force && data.brute_force.length > 0) {
-                bfContainer.style.display = 'block';
-                data.brute_force.forEach(err => {
-                    bfTbody.innerHTML += `<tr><td><strong>${err.log_date}</strong></td><td><span class="badge badge-neutral">${err.process}</span></td><td><span class="error-code">${err.message}</span></td></tr>`;
-                });
-            }
-
-            const errContainer = document.getElementById('errorLogContainer');
-            const errTbody = document.getElementById('errorLogBody');
-            if(data.error_logs && data.error_logs.length > 0) {
-                errContainer.style.display = 'block';
-                data.error_logs.forEach(err => {
-                    errTbody.innerHTML += `<tr><td><strong>${err.log_date}</strong></td><td><span class="badge badge-neutral">${err.process}</span></td><td><span class="error-code">${err.message}</span></td></tr>`;
-                });
-            }
-
-            const cpuVal = data.cpu_stats.sql_cpu || 0;
-            document.getElementById('sqlCpuValue').innerText = cpuVal + '%';
-            const cpuBar = document.getElementById('cpuProgressBar');
-            cpuBar.style.width = cpuVal + '%';
-            cpuBar.style.background = cpuVal > 85 ? '#ef4444' : (cpuVal > 60 ? '#f59e0b' : '#3b82f6');
-
-            const waitTbody = document.getElementById('waitStatsBody');
-            waitTbody.innerHTML = "";
-            if (data.wait_stats && data.wait_stats.length > 0) {
-                data.wait_stats.forEach(w => {
-                    let pctBadge = w.percentage > 40 ? `<span class="badge badge-danger">${w.percentage}%</span>` : `<span class="badge badge-neutral">${w.percentage}%</span>`;
-                    waitTbody.innerHTML += `<tr><td><strong>${w.wait_type}</strong></td><td class="text-right">${w.wait_time_sec.toLocaleString()}</td><td class="text-right">${pctBadge}</td></tr>`;
-                });
-            } else {
-                waitTbody.innerHTML = `<tr><td colspan='3' class="text-center" style="color: #10b981; font-weight:bold;">No significant wait bottlenecks detected.</td></tr>`;
-            }
-
-            const ramContainer = document.getElementById('ramContainer');
-            const ramTbody = document.getElementById('ramBody');
-            if(data.ram_usage && data.ram_usage.length > 0) {
-                ramContainer.style.display = 'block';
-                data.ram_usage.forEach(r => {
-                    let rBadge = r.mb_used > 5000 ? `<span class="badge badge-danger">${r.mb_used.toLocaleString()} MB</span>` : `<span class="badge badge-neutral">${r.mb_used.toLocaleString()} MB</span>`;
-                    ramTbody.innerHTML += `<tr><td><strong>${r.database}</strong></td><td class="text-right">${rBadge}</td></tr>`;
-                });
-            }
-
-            const clerksContainer = document.getElementById('clerksContainer');
-            const clerksTbody = document.getElementById('clerksBody');
-            if (data.memory_clerks && data.memory_clerks.length > 0) {
-                clerksContainer.style.display = 'block';
-                data.memory_clerks.forEach(c => {
-                    let cBadge = c.allocated_mb > 5000 ? `<span class="badge badge-danger">${c.allocated_mb.toLocaleString()} MB</span>` : `<span class="badge badge-neutral">${c.allocated_mb.toLocaleString()} MB</span>`;
-                    clerksTbody.innerHTML += `<tr><td><strong>${c.clerk_name}</strong></td><td class="text-right">${cBadge}</td></tr>`;
-                });
-            }
-
-            const pcContainer = document.getElementById('planCacheContainer');
-            const pcTbody = document.getElementById('planCacheBody');
-            if (data.plan_cache) {
-                pcContainer.style.display = 'block';
-                let pc = data.plan_cache;
-                let singleUseBadge = pc.single_use_plans > 10000 ? `<span class="badge badge-warning">${pc.single_use_plans.toLocaleString()}</span>` : `<span class="badge badge-success">${pc.single_use_plans.toLocaleString()}</span>`;
-                let wasteBadge = pc.wasted_mb > 1000 ? `<span class="badge badge-danger">${pc.wasted_mb.toLocaleString(undefined, {minimumFractionDigits: 2})} MB</span>` : `<span style="font-weight: bold; color: #10b981;">${pc.wasted_mb.toLocaleString(undefined, {minimumFractionDigits: 2})} MB</span>`;
-
-                pcTbody.innerHTML = `<tr>
-                    <td class="text-right">${pc.total_plans.toLocaleString()}</td>
-                    <td class="text-right">${pc.total_mb.toLocaleString(undefined, {minimumFractionDigits: 2})} MB</td>
-                    <td class="text-right">${singleUseBadge}</td>
-                    <td class="text-right">${wasteBadge}</td>
-                </tr>`;
-            }
-
-            const ioContainer = document.getElementById('ioLatencyContainer');
-            const ioTbody = document.getElementById('ioLatencyBody');
-            if(data.io_latency && data.io_latency.length > 0) {
-                ioContainer.style.display = 'block';
-                data.io_latency.forEach(io => {
-                    let rBadge = io.read_ms > 50 ? `<span class="badge badge-danger">${io.read_ms} ms</span>` : (io.read_ms > 20 ? `<span class="badge badge-warning">${io.read_ms} ms</span>` : `<span class="badge badge-success">${io.read_ms} ms</span>`);
-                    let wBadge = io.write_ms > 20 ? `<span class="badge badge-danger">${io.write_ms} ms</span>` : `<span class="badge badge-success">${io.write_ms} ms</span>`;
-                    ioTbody.innerHTML += `<tr><td><strong>${io.database}</strong></td><td class="text-center">${io.drive}</td><td class="text-right">${rBadge}</td><td class="text-right">${wBadge}</td></tr>`;
-                });
-            }
-
-            const rjContainer = document.getElementById('runningJobsContainer');
-            const rjTbody = document.getElementById('runningJobsBody');
-            if(data.running_jobs && data.running_jobs.length > 0) {
-                rjContainer.style.display = 'block';
-                data.running_jobs.forEach(job => {
-                    let minBadge = job.minutes_running > 60 ? `<span class="badge badge-warning">${job.minutes_running} mins</span>` : `<span class="badge badge-success">${job.minutes_running} mins</span>`;
-                    rjTbody.innerHTML += `<tr><td><strong>${job.job_name}</strong></td><td>${job.start_time}</td><td class="text-right">${minBadge}</td></tr>`;
-                });
-            }
-
-            const connContainer = document.getElementById('connectionsContainer');
-            const connTbody = document.getElementById('connectionsBody');
-            if(data.active_connections && data.active_connections.length > 0) {
-                connContainer.style.display = 'block';
-                data.active_connections.slice(0, 10).forEach(c => {
-                    let countBadge = c.count > 300 ? `<span class="badge badge-danger">${c.count}</span>` : `<span class="badge badge-neutral" style="background:#ccfbf1; color:#0f766e;">${c.count}</span>`;
-                    connTbody.innerHTML += `<tr><td><strong>${c.database}</strong></td><td>${c.login}</td><td class="text-right">${countBadge}</td></tr>`;
-                });
-            }
-
-            const tdbTbody = document.getElementById('tempdbBody');
-            const tdb = data.tempdb_health;
-            let contentionBadge = tdb.contention_tasks > 0 ? `<span class="badge badge-danger">${tdb.contention_tasks} Tasks Blocked</span>` : `<span class="badge badge-success">Healthy (0)</span>`;
-            tdbTbody.innerHTML = `<tr>
-                <td class="text-right">${tdb.user_mb.toLocaleString(undefined, {minimumFractionDigits: 2})}</td>
-                <td class="text-right">${tdb.internal_mb.toLocaleString(undefined, {minimumFractionDigits: 2})}</td>
-                <td class="text-right">${tdb.version_mb.toLocaleString(undefined, {minimumFractionDigits: 2})}</td>
-                <td class="text-right">${tdb.free_mb.toLocaleString(undefined, {minimumFractionDigits: 2})}</td>
-                <td class="text-center">${contentionBadge}</td>
-            </tr>`;
-
-            const tdbfContainer = document.getElementById('tempdbFilesWrapper');
-            const tdbfTbody = document.getElementById('tempdbFilesBody');
-            if (data.tempdb_files && data.tempdb_files.length > 0) {
-                tdbfContainer.style.display = 'block';
-                data.tempdb_files.forEach(f => {
-                    tdbfTbody.innerHTML += `<tr>
-                        <td><strong>${f.file_name}</strong></td>
-                        <td class="text-right">${f.total_mb.toLocaleString(undefined, {minimumFractionDigits: 2})}</td>
-                        <td class="text-right">${f.used_mb.toLocaleString(undefined, {minimumFractionDigits: 2})}</td>
-                        <td class="text-right">${f.free_mb.toLocaleString(undefined, {minimumFractionDigits: 2})}</td>
-                    </tr>`;
-                });
-            }
-
-            const vlfContainer = document.getElementById('vlfContainer');
-            const vlfTbody = document.getElementById('vlfBody');
-            if (data.vlfs && data.vlfs.length > 0) {
-                vlfContainer.style.display = 'block';
-                data.vlfs.slice(0, 10).forEach(v => {
-                    let totalBadge = v.total > 1000 ? `<span class="badge badge-danger">${v.total}</span>` : `<span class="badge badge-neutral">${v.total}</span>`;
-                    let activeBadge = v.active > 0 ? `<span style="font-weight:bold; color:#1d4ed8;">${v.active}</span>` : `<span style="color:#64748b;">${v.active}</span>`;
-                    vlfTbody.innerHTML += `<tr>
-                        <td><strong>${v.database}</strong></td>
-                        <td class="text-right">${totalBadge}</td>
-                        <td class="text-right">${activeBadge}</td>
-                    </tr>`;
-                });
-            }
-
-            const corrContainer = document.getElementById('corruptionContainer');
-            const corrTbody = document.getElementById('corruptionBody');
-            if (data.suspect_pages && data.suspect_pages.length > 0) {
-                corrContainer.style.display = 'block';
-                data.suspect_pages.forEach(p => {
-                    let errDesc = p.event_type === 1 ? 'Hardware Error (823/824)' : (p.event_type === 2 ? 'Bad Checksum' : 'Torn Page');
-                    corrTbody.innerHTML += `<tr><td><strong>${p.db_name}</strong></td><td>File: ${p.file_id}</td><td>Page: ${p.page_id}</td><td><span class="badge badge-danger">${errDesc}</span></td></tr>`;
-                });
-            }
-
-            const miContainer = document.getElementById('missingIndexContainer');
-            const miTbody = document.getElementById('missingIndexBody');
-            if(data.missing_indexes && data.missing_indexes.length > 0) {
-                miContainer.style.display = 'block';
-                data.missing_indexes.forEach(mi => {
-                    let impactBadge = `<span class="badge badge-success">+${mi.impact}%</span>`;
-                    miTbody.innerHTML += `<tr><td><strong>${mi.database}</strong></td><td>${mi.table}</td><td class="text-center">${impactBadge}</td><td><span class="sql-code" style="background:#064e3b; border-color:#022c22; color:#ecfdf5;">${mi.script}</span></td></tr>`;
-                });
-            }
-
-            const sysadminBody = document.getElementById('sysadminBody');
-            sysadminBody.innerHTML = "";
-            if (data.sysadmins && data.sysadmins.length > 0) {
-                data.sysadmins.forEach(sa => {
-                    const statusBadge = sa.is_disabled ? '<span class="badge badge-neutral">Disabled</span>' : '<span class="badge badge-success">Active</span>';
-                    sysadminBody.innerHTML += `<tr><td><strong>${sa.login_name}</strong></td><td><span class="badge badge-indigo">${sa.login_type}</span></td><td class="text-center">${statusBadge}</td></tr>`;
-                });
-            } else {
-                sysadminBody.innerHTML = `<tr><td colspan='3' class="text-center" style="color: #64748b;">No active sysadmins found.</td></tr>`;
-            }
-
-            const restoreBody = document.getElementById('restoreBody');
-            restoreBody.innerHTML = "";
-            if (data.recent_restores && data.recent_restores.length > 0) {
-                data.recent_restores.forEach(rr => {
-                    restoreBody.innerHTML += `<tr><td><strong>${rr.database}</strong></td><td>${rr.restored_by}</td><td class="text-right">${rr.restore_date}</td></tr>`;
-                });
-            } else {
-                restoreBody.innerHTML = `<tr><td colspan='3' class="text-center" style="color: #64748b;">No databases restored in the last 7 days.</td></tr>`;
-            }
-
-            const lqContainer = document.getElementById('longQueriesContainer');
-            const lqTbody = document.getElementById('longQueriesBody');
-            if (data.long_queries && data.long_queries.length > 0) {
-                lqContainer.style.display = 'block';
-                data.long_queries.forEach(q => {
-                    lqTbody.innerHTML += `<tr><td><strong>${q.session_id}</strong></td><td>${q.database}</td><td class="text-right"><span class="badge badge-danger">${q.seconds.toLocaleString()}s</span></td><td><span class="sql-code">${q.query_text}</span></td></tr>`;
-                });
-            }
-
-            const fjContainer = document.getElementById('failedJobsContainer');
-            const fjTbody = document.getElementById('failedJobsBody');
-            if (data.failed_jobs && data.failed_jobs.length > 0) {
-                fjContainer.style.display = 'block';
-                data.failed_jobs.forEach(job => {
-                    fjTbody.innerHTML += `<tr><td><strong>${job.job_name}</strong></td><td>${job.fail_date}</td><td><span class="error-code">${job.error_message}</span></td></tr>`;
-                });
-            }
-
-            const agContainer = document.getElementById('agContainer');
-            const agTbody = document.getElementById('agTableBody');
-            if (data.ag_sync && data.ag_sync.length > 0) {
-                agContainer.style.display = 'block';
-                data.ag_sync.forEach(ag => {
-                    let stateBadge = ag.state === 'HEALTHY' || ag.state === 'SYNCHRONIZED' || ag.state === 'SYNCHRONIZING' ? `<span class="badge badge-success">${ag.state}</span>` : `<span class="badge badge-danger">${ag.state}</span>`;
-                    let logBadge = ag.log_queue_mb > 100 ? `<span class="badge badge-danger">${ag.log_queue_mb} MB</span>` : `<span style="color: #10b981; font-weight: bold;">${ag.log_queue_mb} MB</span>`;
-                    let redoBadge = ag.redo_queue_mb > 100 ? `<span class="badge badge-danger">${ag.redo_queue_mb} MB</span>` : `<span style="color: #10b981; font-weight: bold;">${ag.redo_queue_mb} MB</span>`;
-                    agTbody.innerHTML += `<tr><td><strong>${ag.database}</strong></td><td>${ag.secondary}</td><td class="text-center">${stateBadge}</td><td class="text-right">${logBadge}</td><td class="text-right">${redoBadge}</td></tr>`;
-                });
-            }
-
-            const dbpContainer = document.getElementById('dbPurgeContainer');
-            const dbpTbody = document.getElementById('dbPurgeBody');
-            if (data.db_purge_stats && data.db_purge_stats.length > 0) {
-                dbpContainer.style.display = 'block';
-                data.db_purge_stats.forEach(db => {
-                    let actionBadge = '';
-                    if (db.action_plan.includes('SAFE TO RENAME/DETACH')) {
-                        actionBadge = `<span class="badge badge-success">${db.action_plan}</span>`;
-                    } else {
-                        actionBadge = `<span class="badge badge-warning">${db.action_plan}</span>`;
-                    }
-
-                    let readHtml = db.last_read === 'Never' ? '<span class="badge badge-danger">Never</span>' : db.last_read;
-                    let writeHtml = db.last_write === 'Never' ? '<span class="badge badge-danger">Never</span>' : db.last_write;
-
-                    dbpTbody.innerHTML += `<tr>
-                        <td><strong>${db.database}</strong></td>
-                        <td class="text-right">${readHtml}</td>
-                        <td class="text-right">${writeHtml}</td>
-                        <td>${actionBadge}</td>
-                    </tr>`;
-                });
-            }
-
-            const tsContainer = document.getElementById('tableStatsContainer');
-            if (data.table_usage_stats && data.table_usage_stats.length > 0) {
-                tsContainer.style.display = 'block';
-                document.getElementById('tableCacheTime').innerText = "Last scan: " + (data.table_cache_time || 'Never');
-                ghostDataStore = data.table_usage_stats;
-                renderNextGhostChunk();
-            } else {
-                tsContainer.style.display = 'none';
-            }
-
-            document.getElementById('indexCacheTime').innerText = "Last scan: " + (data.index_cache_time || 'Never');
-
-            const driveTbody = document.getElementById('driveTableBody');
-            driveTbody.innerHTML = "";
-            data.drives.forEach(drive => {
-                let driveBadge = drive.free_percent < 10.0 ? `<span class="badge badge-danger">${drive.free_percent}%</span>` : `<span class="badge badge-success">${drive.free_percent}%</span>`;
-                driveTbody.innerHTML += `<tr><td><strong>${drive.letter}</strong></td><td class="text-right">${drive.free_gb.toLocaleString(undefined, {minimumFractionDigits: 2})} GB</td><td class="text-right">${drive.total_gb.toLocaleString(undefined, {minimumFractionDigits: 2})} GB</td><td class="text-right">${driveBadge}</td></tr>`;
-            });
-
-            const dbTbody = document.getElementById('dbTableBody');
-            dbTbody.innerHTML = "";
-            data.databases.forEach(db => {
-                let statusBadge = (db.status.toUpperCase() === 'ONLINE') ? '<span class="badge badge-success">ONLINE</span>' : `<span class="badge badge-danger">${db.status}</span>`;
-                let backupBadge = db.backup_status === 'OK' ? '<span class="badge badge-success">OK</span>' : (db.backup_status === 'MISSING' ? '<span class="badge badge-danger">MISSING</span>' : `<span class="badge badge-warning">${db.backup_status}</span>`);
-                let autoShrinkBadge = db.auto_shrink ? '<span class="badge badge-warning">ON</span>' : '<span class="badge badge-neutral">OFF</span>';
-
-                let logWaitBadge = db.log_wait === 'NOTHING' ? '<span class="badge badge-neutral">NOTHING</span>' : (db.log_wait === 'LOG_BACKUP' ? '<span class="badge badge-warning">LOG_BACKUP</span>' : (db.log_wait === 'AVAILABILITY_REPLICA' ? '<span class="badge badge-danger">AG_REPLICA</span>' : `<span class="badge badge-warning">${db.log_wait}</span>`));
-
-                let logPct = db.log_used_pct || 0;
-                let barColor = logPct > 85 ? '#ef4444' : (logPct > 50 ? '#f59e0b' : '#10b981');
-                let textColor = logPct > 50 ? '#ffffff' : '#334155';
-
-                let logBarHtml = `<div class="progress-bar-container"><div class="progress-bar-fill" style="background: ${barColor}; width: ${logPct}%;"></div><div class="progress-bar-text" style="color: ${textColor};">${logPct}%</div></div>`;
-
-                dbTbody.innerHTML += `<tr><td><strong>${db.name}</strong></td><td class="text-center">${statusBadge}</td><td class="text-right">${db.size_mb.toLocaleString(undefined, {minimumFractionDigits: 2})} MB</td><td class="text-center">${backupBadge}</td><td class="text-center">${autoShrinkBadge}</td><td class="text-center">${logBarHtml}</td><td class="text-center">${logWaitBadge}</td></tr>`;
-            });
-
-            const dbIndexSelect = document.getElementById('dbIndexSelect');
-            const dbSecuritySelect = document.getElementById('dbSecuritySelect');
-            dbIndexSelect.innerHTML = '<option value="">-- Select a Database --</option>';
-            dbSecuritySelect.innerHTML = '<option value="">-- Select a Database --</option>';
-
-            const sortedDatabases = data.databases.sort((a, b) => a.name.localeCompare(b.name));
-            sortedDatabases.forEach(db => {
-                dbIndexSelect.innerHTML += `<option value="${db.name}">${db.name}</option>`;
-                dbSecuritySelect.innerHTML += `<option value="${db.name}">${db.name}</option>`;
-            });
-    
-            setToolsEnabled(true);
-            document.getElementById('exportPdfBtn').disabled = false;
-    
-            let delay = 0;
-            document.querySelectorAll('#dashboardContent .card').forEach(card => {
-                card.style.animation = 'none';
-                void card.offsetWidth;
-                card.style.animation = null;
-                if (card.style.display !== 'none' && !card.classList.contains('header-card')) {
-                    card.style.animationDelay = delay + 's';
-                    delay += 0.08;
-                }
-            });
-            
-            // Build the dynamic navigation menu based on visible cards
-            setTimeout(() => buildQuickNav(), 300);
-        })
-        .catch(err => {
-            if (window.loadingInterval) clearInterval(window.loadingInterval);
-            btn.innerHTML = "Refresh Dashboard";
-            btn.disabled = false;
-            document.getElementById('connectionErrorContainer').style.display = 'block';
-            document.getElementById('connectionErrorText').textContent = "Fatal backend network error: Could not reach the Python server.";
-            setToolsEnabled(false);
-        });
-}
-
-function renderNextGhostChunk() {
-    const tbody = document.getElementById('tableStatsBody');
-    if (ghostCurrentIndex === 0) tbody.innerHTML = "";
-
-    const nextBatch = ghostDataStore.slice(ghostCurrentIndex, ghostCurrentIndex + GHOST_CHUNK_SIZE);
-    let chunkHtml = "";
-
-    nextBatch.forEach(ts => {
-        let badgeClass = ts.status.includes('SAFE') ? 'badge-success' : (ts.status.includes('LOOK') ? 'badge-warning' : 'badge-danger');
-        let readHtml = (ts.last_scan === 'Never' && ts.last_seek === 'Never') ? '<span class="badge badge-danger">Never</span>' : `<span style="font-size:12px;">Scan: ${ts.last_scan}<br>Seek: ${ts.last_seek}</span>`;
-        let updateHtml = ts.last_update === 'Never' ? '<span class="badge badge-danger">Never</span>' : ts.last_update;
-        let rowsBadge = ts.rows > 1000000 ? `<span class="badge badge-danger">${ts.rows.toLocaleString()}</span>` : `<span class="badge badge-neutral">${ts.rows.toLocaleString()}</span>`;
-
-        chunkHtml += `<tr>
-            <td><strong>${ts.database}</strong></td>
-            <td>${ts.schema}.${ts.table}</td>
-            <td class="text-center"><span class="badge ${badgeClass}" style="font-size:10px; white-space:normal;">${ts.status}</span></td>
-            <td class="text-right">${rowsBadge}</td>
-            <td class="text-right">${updateHtml}</td>
-            <td class="text-right">${readHtml}</td>
-        </tr>`;
-    });
-
-    tbody.insertAdjacentHTML('beforeend', chunkHtml);
-    ghostCurrentIndex += GHOST_CHUNK_SIZE;
-
-    const displayCount = Math.min(ghostCurrentIndex, ghostDataStore.length);
-    document.getElementById('ghostTableCounter').innerText = `Displaying ${displayCount} / ${ghostDataStore.length} tables`;
-
-    if(ghostCurrentIndex >= ghostDataStore.length) {
-        document.getElementById('ghostLoadMoreBtn').style.display = 'none';
+    if (selectedDBs.length > 0) {
+        scanBtn.disabled = false;
+        if (selectedDBs.length > 1) {
+            showToast("⚠️ Note: Fetching index caches for multiple databases may take a moment...", "warning");
+            tableSelect.innerHTML = '<option value="all">-- All Tables --</option>';
+            tableSelect.disabled = true;
+        } else {
+            fetchTablesForIndex(selectedDBs[0]);
+        }
     } else {
-        document.getElementById('ghostLoadMoreBtn').style.display = 'block';
+        scanBtn.disabled = true;
+        tableSelect.innerHTML = '<option value="all">-- All Tables --</option>';
+        tableSelect.disabled = true;
     }
 }
 
-// ==========================================
-// TOOL: INDEX SCANNER
-// ==========================================
-function fetchTablesForIndex() {
+function fetchTablesForIndex(dbName) {
     const selectedServer = document.getElementById('serverSelect').value;
-    const selectedDB = document.getElementById('dbIndexSelect').value;
     const tableSelect = document.getElementById('tableIndexSelect');
     const scanBtn = document.getElementById('indexBtn');
-
     tableSelect.innerHTML = '<option value="all">-- All Tables --</option>';
     tableSelect.disabled = true;
 
-    if (!selectedServer || !selectedDB) {
-        scanBtn.disabled = true;
-        scanBtn.innerHTML = "Load Indexes";
-        return;
-    }
+    if (!selectedServer || !dbName) return;
 
     scanBtn.innerHTML = '<span class="spinner"></span> Loading Tables...';
     scanBtn.disabled = true;
 
-    fetch(`/api/tables?server=${encodeURIComponent(selectedServer)}&db=${encodeURIComponent(selectedDB)}`)
-    .then(r => r.json())
-    .then(data => {
-        if (data.tables) {
-            data.tables.forEach(t => {
-                tableSelect.innerHTML += `<option value="${t}">${t}</option>`;
-            });
-            tableSelect.disabled = false;
-        }
-        scanBtn.innerHTML = "Load Indexes";
-        scanBtn.disabled = false;
-    }).catch(e => {
-        scanBtn.innerHTML = "Load Indexes";
-        scanBtn.disabled = false;
-    });
+    fetch(`/api/tables?server=${encodeURIComponent(selectedServer)}&db=${encodeURIComponent(dbName)}`)
+        .then(r => r.json())
+        .then(data => {
+            if (data.tables) {
+                data.tables.forEach(t => { tableSelect.innerHTML += `<option value="${t}">${t}</option>`; });
+                tableSelect.disabled = false;
+            }
+            scanBtn.innerHTML = "Load Indexes";
+            scanBtn.disabled = false;
+        }).catch(e => {
+            scanBtn.innerHTML = "Load Indexes";
+            scanBtn.disabled = false;
+        });
 }
 
 function renderIndexPage(page) {
     currentIdxPage = page;
     const tbody = document.getElementById('indexTableBody');
     tbody.innerHTML = "";
-
     const startIndex = (page - 1) * idxRowsPerPage;
     const endIndex = startIndex + idxRowsPerPage;
     const pageData = globalIndexData.slice(startIndex, endIndex);
-
     pageData.forEach(idx => {
         const tr = document.createElement('tr');
         let fragBadge = idx.fragmentation > 30 ? `<span class="badge badge-danger">${idx.fragmentation}%</span>` : `<span class="badge badge-warning">${idx.fragmentation}%</span>`;
         tr.innerHTML = `<td><strong>${idx.table}</strong></td><td>${idx.index}</td><td class="text-right">${fragBadge}</td><td class="text-right">${idx.pages.toLocaleString()}</td>`;
         tbody.appendChild(tr);
     });
-
     renderPaginationControls();
 }
 
@@ -2428,38 +1571,33 @@ function renderPaginationControls() {
     const totalPages = Math.ceil(globalIndexData.length / idxRowsPerPage);
     const controlsDiv = document.getElementById('indexPagination');
     controlsDiv.innerHTML = "";
-
     if (totalPages <= 1) return;
-
     const prevBtn = document.createElement('button');
     prevBtn.textContent = "◀ Prev";
     prevBtn.className = "btn-page";
     prevBtn.disabled = currentIdxPage === 1;
     prevBtn.onclick = () => renderIndexPage(currentIdxPage - 1);
-
     const pageIndicator = document.createElement('span');
     pageIndicator.style.fontSize = "13px";
     pageIndicator.style.color = "#64748b";
     pageIndicator.style.fontWeight = "bold";
     pageIndicator.textContent = `Page ${currentIdxPage} of ${totalPages}`;
-
     const nextBtn = document.createElement('button');
     nextBtn.textContent = "Next ▶";
     nextBtn.className = "btn-page";
     nextBtn.disabled = currentIdxPage === totalPages;
     nextBtn.onclick = () => renderIndexPage(currentIdxPage + 1);
-
     controlsDiv.appendChild(prevBtn);
     controlsDiv.appendChild(pageIndicator);
     controlsDiv.appendChild(nextBtn);
 }
 
-function fetchIndexes() {
+async function fetchIndexes() {
     const selectedServer = document.getElementById('serverSelect').value;
-    const selectedDB = document.getElementById('dbIndexSelect').value;
-    const selectedTable = document.getElementById('tableIndexSelect');
+    const selectedDBs = Array.from(document.getElementById('dbIndexSelect').selectedOptions).map(opt => opt.value);
+    const selectedTable = document.getElementById('tableIndexSelect').value;
 
-    if (!selectedServer || !selectedDB) return showToast("Please select both a server and a database.", "error");
+    if (!selectedServer || selectedDBs.length === 0) return showToast("Please select both a server and a database.", "error");
 
     const btn = document.getElementById('indexBtn');
     btn.innerHTML = '<span class="spinner"></span> Loading...';
@@ -2474,45 +1612,56 @@ function fetchIndexes() {
     paginationDiv.innerHTML = "";
     cacheText.innerHTML = "";
 
-    fetch(`/api/indexes?server=${encodeURIComponent(selectedServer)}&db=${encodeURIComponent(selectedDB)}&table=${encodeURIComponent(selectedTable)}`)
-        .then(r => r.json()).then(data => {
-            btn.innerHTML = "Load Indexes";
-            btn.disabled = false;
+    globalIndexData = [];
+    let cachedCount = 0;
+    let scanCount = 0;
+    let hasError = false;
 
-            if (data.error) {
-                tbody.innerHTML = `<tr><td colspan='4' class="text-center" style="color:red;">Error: ${data.error}</td></tr>`;
-                return;
-            }
+    for (let db of selectedDBs) {
+        try {
+            let targetTable = selectedDBs.length > 1 ? 'all' : selectedTable;
+            const r = await fetch(`/api/indexes?server=${encodeURIComponent(selectedServer)}&db=${encodeURIComponent(db)}&table=${encodeURIComponent(targetTable)}`);
+            const data = await r.json();
+            
+            if (!data.error) {
+                if(data.cached) cachedCount++; else scanCount++;
+                data.indexes.forEach(idx => idx.table = `${db} - ${idx.table}`);
+                globalIndexData = globalIndexData.concat(data.indexes);
+            } else { hasError = true; }
+        } catch(e) { hasError = true; }
+    }
 
-            if (data.cached) {
-                cacheText.innerHTML = '<span style="color: #10b981;">⚡ Loaded instantly from local background cache.</span>';
-            } else {
-                cacheText.innerHTML = '<span>Live scan completed.</span>';
-            }
+    btn.innerHTML = "Load Indexes";
+    btn.disabled = false;
 
-            globalIndexData = data.indexes;
+    if (hasError && globalIndexData.length === 0) {
+        tbody.innerHTML = `<tr><td colspan='4' class="text-center" style="color:red;">Error fetching data.</td></tr>`;
+        return;
+    }
 
-            if (globalIndexData.length === 0) {
-                tbody.innerHTML = "<tr><td colspan='4' class='text-center' style='padding: 30px; color: #10b981; font-weight: bold;'>✅ No highly fragmented large indexes found! System is healthy.</td></tr>";
-                return;
-            }
+    if (scanCount === 0 && cachedCount > 0) {
+        cacheText.innerHTML = '<span style="color: #10b981;">⚡ Loaded instantly from local background cache.</span>';
+    } else {
+        cacheText.innerHTML = '<span>Live scan completed.</span>';
+    }
 
-            renderIndexPage(1);
+    if (globalIndexData.length === 0) {
+        tbody.innerHTML = "<tr><td colspan='4' class='text-center' style='padding: 30px; color: #10b981; font-weight: bold;'>✅ No highly fragmented large indexes found! System is healthy.</td></tr>";
+        return;
+    }
 
-        }).catch(e => {
-            btn.innerHTML = "Load Indexes";
-            btn.disabled = false;
-            tbody.innerHTML = `<tr><td colspan='4' class="text-center" style="color:red;">Failed to connect.</td></tr>`;
-        });
+    globalIndexData.sort((a, b) => b.fragmentation - a.fragmentation);
+    renderIndexPage(1);
 }
 
 // ==========================================
-// TOOL: SECURITY VALIDATOR
+// TOOL: SECURITY VALIDATOR (MULTI-SELECT)
 // ==========================================
-function fetchSecurity() {
+async function fetchSecurity() {
     const selectedServer = document.getElementById('serverSelect').value;
-    const selectedDB = document.getElementById('dbSecuritySelect').value;
-    if (!selectedServer || !selectedDB) return showToast("Please select both a server and a database.", "error");
+    const selectedDBs = Array.from(document.getElementById('dbSecuritySelect').selectedOptions).map(opt => opt.value);
+    
+    if (!selectedServer || selectedDBs.length === 0) return showToast("Please select both a server and at least one database.", "error");
 
     const btn = document.getElementById('securityBtn');
     btn.innerHTML = '<span class="spinner"></span> Validating...';
@@ -2521,38 +1670,41 @@ function fetchSecurity() {
     document.getElementById('securityResults').style.display = 'block';
     const oTbody = document.getElementById('orphanedTableBody');
     const owTbody = document.getElementById('ownerTableBody');
+    oTbody.innerHTML = "<tr><td colspan='3' class='text-center' style='padding: 10px; color: #64748b;'><span class='spinner spinner-dark'></span> Scanning users...</td></tr>";
+    owTbody.innerHTML = "<tr><td colspan='3' class='text-center' style='padding: 10px; color: #64748b;'><span class='spinner spinner-dark'></span> Loading db_owners...</td></tr>";
 
-    oTbody.innerHTML = "<tr><td colspan='2' class='text-center' style='padding: 10px; color: #64748b;'><span class='spinner spinner-dark'></span> Scanning users...</td></tr>";
-    owTbody.innerHTML = "<tr><td colspan='2' class='text-center' style='padding: 10px; color: #64748b;'><span class='spinner spinner-dark'></span> Loading db_owners...</td></tr>";
+    let allOrphaned = [];
+    let allOwners = [];
 
-    fetch(`/api/security?server=${encodeURIComponent(selectedServer)}&db=${encodeURIComponent(selectedDB)}`).then(r => r.json()).then(data => {
-        btn.innerHTML = "Validate Security";
-        btn.disabled = false;
+    for (let db of selectedDBs) {
+        try {
+            const r = await fetch(`/api/security?server=${encodeURIComponent(selectedServer)}&db=${encodeURIComponent(db)}`);
+            const data = await r.json();
+            if(!data.error) {
+                data.orphaned.forEach(u => u.db = db);
+                data.owners.forEach(u => u.db = db);
+                allOrphaned = allOrphaned.concat(data.orphaned);
+                allOwners = allOwners.concat(data.owners);
+            }
+        } catch(e) { console.error(e); }
+    }
 
-        if (data.error) {
-            oTbody.innerHTML = `<tr><td colspan='2' class="text-center" style="color:red;">Error: ${data.error}</td></tr>`;
-            owTbody.innerHTML = "";
-            return;
-        }
+    btn.innerHTML = "Validate Security";
+    btn.disabled = false;
 
-        oTbody.innerHTML = "";
-        if (data.orphaned.length === 0) {
-            oTbody.innerHTML = "<tr><td colspan='2' class='text-center' style='padding: 15px; color: #10b981; font-weight: bold;'>✅ No orphaned users found. Access is secure!</td></tr>";
-        } else {
-            data.orphaned.forEach(u => oTbody.innerHTML += `<tr><td><strong>${u.user}</strong> <span class="badge badge-danger">ORPHANED</span></td><td>${u.type}</td></tr>`);
-        }
+    oTbody.innerHTML = "";
+    if (allOrphaned.length === 0) {
+        oTbody.innerHTML = "<tr><td colspan='3' class='text-center' style='padding: 15px; color: #10b981; font-weight: bold;'>✅ No orphaned users found. Access is secure!</td></tr>";
+    } else {
+        allOrphaned.forEach(u => oTbody.innerHTML += `<tr><td><strong>${u.db}</strong></td><td><strong>${u.user}</strong> <span class="badge badge-danger">ORPHANED</span></td><td>${u.type}</td></tr>`);
+    }
 
-        owTbody.innerHTML = "";
-        if (data.owners.length === 0) {
-            owTbody.innerHTML = "<tr><td colspan='2' class='text-center' style='padding: 15px; color: #64748b;'>No additional db_owners found.</td></tr>";
-        } else {
-            data.owners.forEach(u => owTbody.innerHTML += `<tr><td><strong>${u.user}</strong></td><td><span class="badge badge-indigo">${u.type}</span></td></tr>`);
-        }
-    }).catch(e => {
-        btn.innerHTML = "Validate Security";
-        btn.disabled = false;
-        oTbody.innerHTML = `<tr><td colspan='2' class="text-center" style="color:red;">Failed to connect.</td></tr>`;
-    });
+    owTbody.innerHTML = "";
+    if (allOwners.length === 0) {
+        owTbody.innerHTML = "<tr><td colspan='3' class='text-center' style='padding: 15px; color: #64748b;'>No additional db_owners found.</td></tr>";
+    } else {
+        allOwners.forEach(u => owTbody.innerHTML += `<tr><td><strong>${u.db}</strong></td><td><strong>${u.user}</strong></td><td><span class="badge badge-indigo">${u.type}</span></td></tr>`);
+    }
 }
 </script>
 {% endif %}
