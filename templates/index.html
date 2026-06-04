@@ -1558,9 +1558,31 @@ function closeGlobalSyncModal() {
     document.getElementById('globalSyncModal').style.display = 'none';
 }
 
+function toggleAllPdfOptions() {
+    const checkboxes = document.querySelectorAll('.pdf-option-cb');
+    const btn = document.getElementById('pdfSelectAllBtn');
+    const isSelectingAll = btn.innerText === 'Select All';
+    
+    checkboxes.forEach(cb => {
+        cb.checked = isSelectingAll;
+        cb.dispatchEvent(new Event('change')); // Trigger dropdown toggles
+    });
+    
+    btn.innerText = isSelectingAll ? 'Deselect All' : 'Select All';
+}
+
 function openPdfModal() {
+    document.body.style.overflow = 'hidden'; // Lock background scrolling
     const container = document.getElementById('pdfOptionsContainer');
     container.innerHTML = '';
+    
+    // Inject Select All Button
+    const selectAllContainer = document.createElement('div');
+    selectAllContainer.style.marginBottom = '15px';
+    selectAllContainer.style.textAlign = 'right';
+    selectAllContainer.innerHTML = `<button class="btn-page" onclick="toggleAllPdfOptions()" id="pdfSelectAllBtn" style="cursor:pointer; font-weight:bold;">Select All</button>`;
+    container.appendChild(selectAllContainer);
+
     const cards = document.querySelectorAll('#dashboardContent .card');
     let count = 0;
     
@@ -1572,45 +1594,119 @@ function openPdfModal() {
                 const label = document.createElement('label');
                 label.className = 'checkbox-container';
                 label.style.marginBottom = '8px';
+                label.style.display = 'flex';
+                label.style.justifyContent = 'space-between';
                 
+                const leftDiv = document.createElement('div');
+                leftDiv.style.display = 'flex';
+                leftDiv.style.alignItems = 'center';
+                leftDiv.style.gap = '10px';
+
                 const checkbox = document.createElement('input');
                 checkbox.type = 'checkbox';
                 checkbox.value = card.id;
-                checkbox.checked = true; // Default selected
+                checkbox.className = 'pdf-option-cb';
+                checkbox.checked = false; // Unticked by default
                 
                 const span = document.createElement('span');
                 span.innerText = titleEl.innerText;
                 
-                label.appendChild(checkbox);
-                label.appendChild(span);
+                leftDiv.appendChild(checkbox);
+                leftDiv.appendChild(span);
+                label.appendChild(leftDiv);
+
+                // Inject dynamic dropdowns for Index and Security
+                if (titleEl.innerText.includes("Index Fragmentation") || titleEl.innerText.includes("Post-Restore Security")) {
+                    const dbSelect = document.createElement('select');
+                    dbSelect.className = 'pdf-db-select';
+                    dbSelect.id = 'pdf-db-' + card.id;
+                    dbSelect.style.height = '30px';
+                    dbSelect.style.fontSize = '12px';
+                    dbSelect.style.minWidth = '150px';
+                    dbSelect.style.padding = '0 10px';
+                    
+                    const mainSelect = document.getElementById('dbIndexSelect');
+                    if (mainSelect) dbSelect.innerHTML = mainSelect.innerHTML;
+                    
+                    dbSelect.disabled = true; // Disabled until checkbox is ticked
+                    checkbox.addEventListener('change', () => { 
+                        dbSelect.disabled = !checkbox.checked; 
+                    });
+                    label.appendChild(dbSelect);
+                }
+
                 container.appendChild(label);
                 count++;
             }
         }
     });
     
-    if(count === 0) return showToast("No data to export. Refresh dashboard first.", "error");
+    if(count === 0) {
+        document.body.style.overflow = 'auto';
+        return showToast("No data to export. Refresh dashboard first.", "error");
+    }
     document.getElementById('pdfModal').style.display = 'block';
 }
 
 function closePdfModal() {
+    document.body.style.overflow = 'auto'; // Unlock background scrolling
     document.getElementById('pdfModal').style.display = 'none';
 }
 
-function generatePDF() {
-    const selectedIds = Array.from(document.querySelectorAll('#pdfOptionsContainer input:checked')).map(cb => cb.value);
+async function generatePDF() {
+    const selectedIds = Array.from(document.querySelectorAll('.pdf-option-cb:checked')).map(cb => cb.value);
     if (selectedIds.length === 0) return showToast("Please select at least one category.", "warning");
     
     const btn = document.getElementById('generatePdfBtn');
     btn.innerHTML = '<span class="spinner spinner-dark" style="border-top-color: white;"></span> Building Document...';
     btn.disabled = true;
     
+    const serverName = document.getElementById('serverSelect').value;
+
+    // --- FETCH CUSTOM DB DATA FOR PDF ---
+    let customIndexData = null;
+    let customSecurityData = null;
+    let customIndexDb = '';
+    let customSecurityDb = '';
+
+    for (let id of selectedIds) {
+        const card = document.getElementById(id);
+        const title = card.querySelector('h3').innerText;
+        
+        if (title.includes("Index Fragmentation")) {
+            customIndexDb = document.getElementById('pdf-db-' + id).value;
+            if (!customIndexDb) {
+                btn.innerHTML = 'Generate PDF Document';
+                btn.disabled = false;
+                return showToast("Please select a database for Index Fragmentation.", "warning");
+            }
+            showToast("Fetching heavy Index cache. Generation will be slightly slower...", "info");
+            try {
+                const res = await fetch(`/api/indexes?server=${encodeURIComponent(serverName)}&db=${encodeURIComponent(customIndexDb)}&table=all`);
+                const data = await res.json();
+                customIndexData = data.indexes || [];
+            } catch (e) { console.error(e); }
+        }
+        
+        if (title.includes("Post-Restore Security")) {
+            customSecurityDb = document.getElementById('pdf-db-' + id).value;
+            if (!customSecurityDb) {
+                btn.innerHTML = 'Generate PDF Document';
+                btn.disabled = false;
+                return showToast("Please select a database for Security Validator.", "warning");
+            }
+            try {
+                const res = await fetch(`/api/security?server=${encodeURIComponent(serverName)}&db=${encodeURIComponent(customSecurityDb)}`);
+                customSecurityData = await res.json();
+            } catch (e) { console.error(e); }
+        }
+    }
+
     const tempDiv = document.createElement('div');
     tempDiv.style.padding = '20px';
     tempDiv.style.backgroundColor = '#f0f2f5';
     tempDiv.style.width = '1200px'; 
     
-    const serverName = document.getElementById('serverSelect').value;
     const header = document.createElement('h2');
     header.innerHTML = `📊 Database Health Report: ${serverName}`;
     header.style.color = '#0f172a';
@@ -1630,6 +1726,7 @@ function generatePDF() {
         const originalCard = document.getElementById(id);
         if (originalCard) {
             const clone = originalCard.cloneNode(true);
+            const titleText = clone.querySelector('h3').innerText;
             
             // 1. Remove scroll constraints to show FULL tables
             const scrollableDivs = clone.querySelectorAll('.table-responsive');
@@ -1653,20 +1750,49 @@ function generatePDF() {
                 tbody.innerHTML = allHtml;
             }
 
-            // 3. Inject ALL paginated data into Index Scanner before printing
-            if (clone.querySelector('#indexTableBody') && typeof globalIndexData !== 'undefined' && globalIndexData.length > 0) {
+            // 3. Inject CUSTOM Index Data based on Modal Selection
+            if (titleText.includes("Index Fragmentation") && customIndexData !== null) {
+                clone.querySelector('h3').innerText = `⚡ Index Fragmentation (${customIndexDb})`;
                 const tbody = clone.querySelector('#indexTableBody');
-                tbody.innerHTML = '';
-                let allHtml = '';
-                globalIndexData.forEach(idx => {
-                    let fragBadge = idx.fragmentation > 30 ? `<span class="badge badge-danger">${idx.fragmentation}%</span>` : `<span class="badge badge-warning">${idx.fragmentation}%</span>`;
-                    allHtml += `<tr><td><strong>${idx.table}</strong></td><td>${idx.index}</td><td class="text-right">${fragBadge}</td><td class="text-right">${idx.pages.toLocaleString()}</td></tr>`;
-                });
-                tbody.innerHTML = allHtml;
+                if (tbody) {
+                    tbody.innerHTML = '';
+                    let allHtml = '';
+                    if (customIndexData.length === 0) {
+                        allHtml = "<tr><td colspan='4' class='text-center' style='padding: 30px; color: #10b981; font-weight: bold;'>✅ No highly fragmented large indexes found! System is healthy.</td></tr>";
+                    } else {
+                        customIndexData.forEach(idx => {
+                            let fragBadge = idx.fragmentation > 30 ? `<span class="badge badge-danger">${idx.fragmentation}%</span>` : `<span class="badge badge-warning">${idx.fragmentation}%</span>`;
+                            allHtml += `<tr><td><strong>${idx.table}</strong></td><td>${idx.index}</td><td class="text-right">${fragBadge}</td><td class="text-right">${idx.pages.toLocaleString()}</td></tr>`;
+                        });
+                    }
+                    tbody.innerHTML = allHtml;
+                }
+            }
+
+            // 4. Inject CUSTOM Security Data based on Modal Selection
+            if (titleText.includes("Post-Restore Security") && customSecurityData !== null) {
+                clone.querySelector('h3').innerText = `🔐 Post-Restore Security (${customSecurityDb})`;
+                const oTbody = clone.querySelector('#orphanedTableBody');
+                const owTbody = clone.querySelector('#ownerTableBody');
+                if (oTbody && owTbody && !customSecurityData.error) {
+                    oTbody.innerHTML = '';
+                    if (customSecurityData.orphaned.length === 0) {
+                        oTbody.innerHTML = "<tr><td colspan='2' class='text-center' style='padding: 15px; color: #10b981; font-weight: bold;'>✅ No orphaned users found. Access is secure!</td></tr>";
+                    } else {
+                        customSecurityData.orphaned.forEach(u => oTbody.innerHTML += `<tr><td><strong>${u.user}</strong> <span class="badge badge-danger">ORPHANED</span></td><td>${u.type}</td></tr>`);
+                    }
+
+                    owTbody.innerHTML = '';
+                    if (customSecurityData.owners.length === 0) {
+                        owTbody.innerHTML = "<tr><td colspan='2' class='text-center' style='padding: 15px; color: #64748b;'>No additional db_owners found.</td></tr>";
+                    } else {
+                        customSecurityData.owners.forEach(u => owTbody.innerHTML += `<tr><td><strong>${u.user}</strong></td><td><span class="badge badge-indigo">${u.type}</span></td></tr>`);
+                    }
+                }
             }
             
-            // Cleanup: remove footers, interactive tools, and tooltips from PDF
-            clone.querySelectorAll('.load-more-footer, .info-icon, button, select, #indexPagination').forEach(el => el.remove());
+            // Cleanup: remove footers, interactive tools, and UI inputs from the PDF clone
+            clone.querySelectorAll('.load-more-footer, .info-icon, button, select, #indexPagination, .controls').forEach(el => el.remove());
             
             tempDiv.appendChild(clone);
         }
@@ -1679,7 +1805,6 @@ function generatePDF() {
     const dd = String(d.getDate()).padStart(2, '0');
     const dateStr = `${yyyy}${mm}${dd}`;
 
-    // Landscape A3 gives maximum width for large data tables
     const opt = {
         margin:       [10, 10, 10, 10],
         filename:     `${dateStr}_${serverName}_Health_Report.pdf`,
