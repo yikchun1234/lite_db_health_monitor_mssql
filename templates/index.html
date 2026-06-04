@@ -324,6 +324,7 @@
         .fab-button { width: 56px; height: 56px; min-width: 56px; border-radius: 50%; font-size: 24px; padding: 0; background-color: #f0f9ff; color: #0ea5e9; border: 2px solid #bae6fd; box-shadow: 0 6px 15px rgba(14, 165, 233, 0.2); display: flex; align-items: center; justify-content: center; transition: all 0.3s var(--bezier-smooth); cursor: pointer; }
         .fab-button:hover { background-color: #e0f2fe; transform: scale(1.1) rotate(15deg); box-shadow: 0 8px 20px rgba(14, 165, 233, 0.4); }
     </style>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
 </head>
 <body> 
 <div id="quickNavFab" class="fab-container" style="display: none;">
@@ -496,8 +497,8 @@ function attemptLogin() {
             <div class="controls-group">
                 <button id="refreshBtn" onclick="fetchMetrics()">Refresh Dashboard</button>
                 <button id="globalSyncBtn" class="btn-outline-purple" onclick="openGlobalSyncModal()" title="Force refresh specific caches across ALL active servers">🔄 Update Global Cache</button>
-                <button class="btn-outline btn-danger-outline" onclick="performLogout()" title="Logout">🚪 Logout</button>
-            </div>
+                <button id="exportPdfBtn" class="btn-outline" onclick="openPdfModal()" title="Export custom report to PDF" disabled>📄 Export PDF</button>
+                <button class="btn-outline btn-danger-outline" onclick="performLogout()" title="Logout">🚪 Logout</button>            </div>
         </div>
     </div>
 
@@ -1169,7 +1170,18 @@ function attemptLogin() {
             <button class="btn-outline-purple" style="flex: 1; color: white; background: #8b5cf6;" id="executeGlobalBtn" onclick="executeGlobalSync()">Yes, Scan Now</button>
         </div>
     </div>
-</div>
+    </div>
+
+    <div id="pdfModal" class="modal">
+        <div class="modal-content" style="width: 500px; text-align: left; padding: 30px;">
+            <span class="close-btn" onclick="closePdfModal()">&times;</span>
+            <h3 style="margin-top: 0; color: #0f172a; border-bottom: 2px solid #f0f2f5; padding-bottom: 10px; margin-bottom: 15px;">📄 Export Dashboard to PDF</h3>
+            <p style="color: #475569; font-size: 13px; margin-bottom: 15px;">Select the categories you want to include in the full PDF report. The data will be fully expanded to display all rows without scrollbars.</p>
+            <div id="pdfOptionsContainer" style="max-height: 400px; overflow-y: auto; margin-bottom: 20px; border: 1px solid #cbd5e1; border-radius: 8px; padding: 15px; background: #f8fafc;">
+                </div>
+            <button class="btn-success" style="width: 100%;" onclick="generatePDF()" id="generatePdfBtn">Generate PDF Document</button>
+        </div>
+    </div>
 
 <script>
 // ==========================================
@@ -1546,6 +1558,148 @@ function closeGlobalSyncModal() {
     document.getElementById('globalSyncModal').style.display = 'none';
 }
 
+function openPdfModal() {
+    const container = document.getElementById('pdfOptionsContainer');
+    container.innerHTML = '';
+    const cards = document.querySelectorAll('#dashboardContent .card');
+    let count = 0;
+    
+    cards.forEach((card, index) => {
+        if (window.getComputedStyle(card).display !== 'none' && !card.classList.contains('header-card')) {
+            const titleEl = card.querySelector('h3');
+            if (titleEl) {
+                if (!card.id) card.id = 'dash-card-' + index;
+                const label = document.createElement('label');
+                label.className = 'checkbox-container';
+                label.style.marginBottom = '8px';
+                
+                const checkbox = document.createElement('input');
+                checkbox.type = 'checkbox';
+                checkbox.value = card.id;
+                checkbox.checked = true; // Default selected
+                
+                const span = document.createElement('span');
+                span.innerText = titleEl.innerText;
+                
+                label.appendChild(checkbox);
+                label.appendChild(span);
+                container.appendChild(label);
+                count++;
+            }
+        }
+    });
+    
+    if(count === 0) return showToast("No data to export. Refresh dashboard first.", "error");
+    document.getElementById('pdfModal').style.display = 'block';
+}
+
+function closePdfModal() {
+    document.getElementById('pdfModal').style.display = 'none';
+}
+
+function generatePDF() {
+    const selectedIds = Array.from(document.querySelectorAll('#pdfOptionsContainer input:checked')).map(cb => cb.value);
+    if (selectedIds.length === 0) return showToast("Please select at least one category.", "warning");
+    
+    const btn = document.getElementById('generatePdfBtn');
+    btn.innerHTML = '<span class="spinner spinner-dark" style="border-top-color: white;"></span> Building Document...';
+    btn.disabled = true;
+    
+    const tempDiv = document.createElement('div');
+    tempDiv.style.padding = '20px';
+    tempDiv.style.backgroundColor = '#f0f2f5';
+    tempDiv.style.width = '1200px'; 
+    
+    const serverName = document.getElementById('serverSelect').value;
+    const header = document.createElement('h2');
+    header.innerHTML = `📊 Database Health Report: ${serverName}`;
+    header.style.color = '#0f172a';
+    header.style.fontFamily = 'sans-serif';
+    header.style.borderBottom = '2px solid #cbd5e1';
+    header.style.paddingBottom = '10px';
+    tempDiv.appendChild(header);
+    
+    const timeP = document.createElement('p');
+    timeP.innerHTML = `Generated on: ${new Date().toLocaleString()}`;
+    timeP.style.color = '#64748b';
+    timeP.style.fontFamily = 'sans-serif';
+    timeP.style.marginBottom = '20px';
+    tempDiv.appendChild(timeP);
+
+    selectedIds.forEach(id => {
+        const originalCard = document.getElementById(id);
+        if (originalCard) {
+            const clone = originalCard.cloneNode(true);
+            
+            // 1. Remove scroll constraints to show FULL tables
+            const scrollableDivs = clone.querySelectorAll('.table-responsive');
+            scrollableDivs.forEach(div => {
+                div.style.maxHeight = 'none';
+                div.style.overflowY = 'visible';
+                div.style.overflowX = 'visible';
+            });
+            
+            // 2. Inject ALL paginated data into Ghost Tables before printing
+            if (clone.querySelector('#tableStatsBody') && typeof ghostDataStore !== 'undefined') {
+                const tbody = clone.querySelector('#tableStatsBody');
+                tbody.innerHTML = ''; 
+                let allHtml = '';
+                ghostDataStore.forEach(ts => {
+                    let badgeClass = ts.status.includes('SAFE') ? 'badge-success' : (ts.status.includes('LOOK') ? 'badge-warning' : 'badge-danger');
+                    let readHtml = (ts.last_scan === 'Never' && ts.last_seek === 'Never') ? '<span class="badge badge-danger">Never</span>' : `<span style="font-size:12px;">Scan: ${ts.last_scan}<br>Seek: ${ts.last_seek}</span>`;
+                    let rowsBadge = ts.rows > 1000000 ? `<span class="badge badge-danger">${ts.rows.toLocaleString()}</span>` : `<span class="badge badge-neutral">${ts.rows.toLocaleString()}</span>`;
+                    allHtml += `<tr><td><strong>${ts.database}</strong></td><td>${ts.schema}.${ts.table}</td><td class="text-center"><span class="badge ${badgeClass}" style="font-size:10px; white-space:normal;">${ts.status}</span></td><td class="text-right">${rowsBadge}</td><td class="text-right">${ts.last_update}</td><td class="text-right">${readHtml}</td></tr>`;
+                });
+                tbody.innerHTML = allHtml;
+            }
+
+            // 3. Inject ALL paginated data into Index Scanner before printing
+            if (clone.querySelector('#indexTableBody') && typeof globalIndexData !== 'undefined' && globalIndexData.length > 0) {
+                const tbody = clone.querySelector('#indexTableBody');
+                tbody.innerHTML = '';
+                let allHtml = '';
+                globalIndexData.forEach(idx => {
+                    let fragBadge = idx.fragmentation > 30 ? `<span class="badge badge-danger">${idx.fragmentation}%</span>` : `<span class="badge badge-warning">${idx.fragmentation}%</span>`;
+                    allHtml += `<tr><td><strong>${idx.table}</strong></td><td>${idx.index}</td><td class="text-right">${fragBadge}</td><td class="text-right">${idx.pages.toLocaleString()}</td></tr>`;
+                });
+                tbody.innerHTML = allHtml;
+            }
+            
+            // Cleanup: remove footers, interactive tools, and tooltips from PDF
+            clone.querySelectorAll('.load-more-footer, .info-icon, button, select, #indexPagination').forEach(el => el.remove());
+            
+            tempDiv.appendChild(clone);
+        }
+    });
+    
+    // Generate YYYYMMDD date prefix
+    const d = new Date();
+    const yyyy = d.getFullYear();
+    const mm = String(d.getMonth() + 1).padStart(2, '0');
+    const dd = String(d.getDate()).padStart(2, '0');
+    const dateStr = `${yyyy}${mm}${dd}`;
+
+    // Landscape A3 gives maximum width for large data tables
+    const opt = {
+        margin:       [10, 10, 10, 10],
+        filename:     `${dateStr}_${serverName}_Health_Report.pdf`,
+        image:        { type: 'jpeg', quality: 0.98 },
+        html2canvas:  { scale: 2, useCORS: true, windowWidth: 1200 },
+        jsPDF:        { unit: 'mm', format: 'a3', orientation: 'landscape' } 
+    };
+    
+    html2pdf().set(opt).from(tempDiv).save().then(() => {
+        btn.innerHTML = 'Generate PDF Document';
+        btn.disabled = false;
+        closePdfModal();
+        showToast("PDF Exported Successfully!", "success");
+    }).catch(err => {
+        btn.innerHTML = 'Generate PDF Document';
+        btn.disabled = false;
+        showToast("Error generating PDF.", "error");
+    });
+}
+
 async function executeGlobalSync() {
     const doGhost = document.getElementById('syncGhostCb').checked;
     const doIndex = document.getElementById('syncIndexCb').checked;
@@ -1671,6 +1825,7 @@ function fetchMetrics() {
     secBtn.innerHTML = "Validate Security";
     secBtn.disabled = true;
 
+    document.getElementById('exportPdfBtn').disabled = true;
     setToolsEnabled(false);
 
     const tableSelect = document.getElementById('tableIndexSelect');
@@ -2023,9 +2178,10 @@ function fetchMetrics() {
                 dbIndexSelect.innerHTML += `<option value="${db.name}">${db.name}</option>`;
                 dbSecuritySelect.innerHTML += `<option value="${db.name}">${db.name}</option>`;
             });
-
+    
             setToolsEnabled(true);
-
+            document.getElementById('exportPdfBtn').disabled = false;
+    
             let delay = 0;
             document.querySelectorAll('#dashboardContent .card').forEach(card => {
                 card.style.animation = 'none';
