@@ -2519,7 +2519,10 @@ function fetchTablesForIndex(dbName) {
         .then(r => r.json())
         .then(data => {
             if (data.tables) {
-                data.tables.forEach(t => { tableSelect.innerHTML += `<option value="${t}">${t}</option>`; });
+                // FIX FOR UI FREEZING: Build the HTML string in memory first, then inject it exactly once!
+                const optionsHtml = data.tables.map(t => `<option value="${t}">${t}</option>`).join('');
+                tableSelect.innerHTML = '<option value="all">-- All Tables --</option>' + optionsHtml;
+                
                 tableSelect.disabled = false;
             }
             scanBtn.innerHTML = "Load Indexes";
