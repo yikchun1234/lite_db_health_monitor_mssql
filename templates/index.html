@@ -1080,6 +1080,7 @@ function attemptLogin() {
                         <table>
                             <thead>
                                 <tr>
+                                    <th>Database <span class="info-icon has-tooltip" data-tooltip="The database containing the orphaned user.">?</span></th>
                                     <th>User Name <span class="info-icon has-tooltip" data-tooltip="<strong>Orphaned User:</strong> This user is mapped inside the database, but their master server-level login is broken or missing. The app using this account will FAIL to connect.<br><br><em>Fix:</em> <code>EXEC sp_change_users_login 'Auto_Fix', 'UserName'</code>">?</span></th>
                                     <th>Account Type <span class="info-icon has-tooltip" data-tooltip="SQL Login or Windows Identity.">?</span></th>
                                 </tr>
@@ -1092,6 +1093,7 @@ function attemptLogin() {
                         <table>
                             <thead>
                                 <tr>
+                                    <th>Database <span class="info-icon has-tooltip" data-tooltip="The database where this user holds owner privileges.">?</span></th>
                                     <th>User Name <span class="info-icon has-tooltip" data-tooltip="Users with the <strong>db_owner</strong> role. They can drop tables, delete data, and bypass all permissions inside this specific database. Ensure only authorized users are on this list!">?</span></th>
                                     <th>Account Type <span class="info-icon has-tooltip" data-tooltip="SQL Login or Windows Identity.">?</span></th>
                                 </tr>
