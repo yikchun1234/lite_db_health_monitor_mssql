@@ -28,6 +28,9 @@
 * **🔎 Smart Index Scanner:** Background-cached index fragmentation analysis with **Zero-Impact** on production performance.
 * **👻 Ghost Table Hunter:** Automatically categorizes tables based on last read/write timestamps to safely identify dead tables for archiving.
 * **⏱️ Active Queries:** Identify long-running, blocked, or high-resource sessions at a glance.
+* **📄 Native PDF Reporting:** Generate multi-page, crisp, and memory-safe PDF reports using native text tables. Users can easily copy and paste raw data directly from the exported documents!
+* **✨ Modern UI & UX:** Features a sleek, responsive dashboard with custom floating-icon dropdowns, intelligently centered modals, and built-in performance warnings to guide users on heavy scans.
+* **🗂️ Smart Data Sorting:** Complex multi-database results (like Index Fragmentation) are automatically grouped by Database A-Z, Table A-Z, and highest fragmentation severity.
 
 ---
 
