@@ -345,20 +345,9 @@
         <button class="info-btn-login" onclick="openAboutModal()" title="About this portal">i</button>
         <div style="font-size: 50px; margin-bottom: 10px;">🛡️</div>
         <h2>Secure Access</h2>
-            <p>Please log in to manage your database servers.</p>
-
-            <div class="form-group">
-                <label>Database Engine</label>
-                <select id="loginDbType" style="width: 100%; margin-bottom: 15px; padding: 10px; border-radius: 4px; border: 1px solid #cbd5e1; font-size: 14px; background-color: #f8fafc;">
-                    <option value="mssql" selected>MSSQL (SQL Server)</option>
-                    <option value="postgres" disabled>PostgreSQL (Coming Soon)</option>
-                    <option value="oracle" disabled>Oracle (Coming Soon)</option>
-                    <option value="mysql" disabled>MySQL (Coming Soon)</option>
-                </select>
-            </div>
-
-            <div class="form-group">
-                <label>Admin Username</label>
+        <p>Please log in to manage your database servers.</p>
+        <div class="form-group">
+            <label>Admin Username</label>
             <input type="text" id="loginUser" placeholder="Enter username" onkeydown="if(event.key === 'Enter') attemptLogin()">
         </div>
         <div class="form-group" style="margin-bottom: 25px;">
@@ -521,7 +510,6 @@ function attemptLogin() {
 
         .custom-select-list::-webkit-scrollbar { width: 6px; }
         .custom-select-list::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 4px; }
-        
     </style>
 
     <div class="header-card header-center-mode" id="mainHeaderCard">
@@ -2536,7 +2524,7 @@ function fetchTablesForIndex(dbName) {
                 // FIX FOR UI FREEZING: Build the HTML string in memory first, then inject it exactly once!
                 const optionsHtml = data.tables.map(t => `<option value="${t}">${t}</option>`).join('');
                 tableSelect.innerHTML = '<option value="all">-- All Tables --</option>' + optionsHtml;
-                
+
                 tableSelect.disabled = false;
             }
             scanBtn.innerHTML = "Load Indexes";
@@ -2773,152 +2761,6 @@ if (serverSelectEl) {
     transformServerDropdown();
     new MutationObserver(() => transformServerDropdown()).observe(serverSelectEl, { childList: true });
 }
-
-// ==========================================
-// BEAUTIFUL LOGIN ENGINE DROPDOWN
-// ==========================================
-/*function transformLoginDropdown() {
-    const select = document.getElementById('loginDbType');
-    const container = document.getElementById('loginDbContainer');
-    if (!select || !container) return;
-
-    // 1. Hide ugly native select
-    select.style.display = 'none';
-
-    // 2. Build new UI
-    const ui = document.createElement('div');
-    ui.className = 'custom-dropdown-ui';
-    
-    const trigger = document.createElement('div');
-    trigger.className = 'custom-select-trigger';
-    // Use a Database barrel icon (🛢️) instead of a PC icon
-    trigger.innerHTML = `<span class="server-icon">🛢️</span> <span class="selected-text">${select.options[select.selectedIndex]?.text || 'MSSQL (SQL Server)'}</span> <span class="chevron-icon">▼</span>`;
-    
-    const list = document.createElement('div');
-    list.className = 'custom-select-list';
-
-    Array.from(select.options).forEach(option => {
-        const item = document.createElement('div');
-        item.className = 'custom-select-item';
-        
-        // Mute 'Coming Soon' databases and block them from being clicked
-        if (option.disabled || option.text.includes('Coming Soon')) {
-            item.classList.add('disabled-item');
-        }
-        item.innerText = option.text;
-        
-        item.onclick = (e) => {
-            e.stopPropagation();
-            if (item.classList.contains('disabled-item')) return; // Blocks clicks on coming soon engines!
-            
-            select.value = option.value;
-            trigger.querySelector('.selected-text').innerText = option.text;
-            list.classList.remove('open');
-            trigger.classList.remove('open');
-        };
-        list.appendChild(item);
-    });
-
-    // Toggle menu
-    trigger.onclick = (e) => {
-        e.stopPropagation();
-        const isOpen = list.classList.contains('open');
-        document.querySelectorAll('.custom-select-list').forEach(l => l.classList.remove('open'));
-        document.querySelectorAll('.custom-select-trigger').forEach(t => t.classList.remove('open'));
-        if (!isOpen) {
-            list.classList.add('open');
-            trigger.classList.add('open');
-        }
-    };
-
-    document.addEventListener('click', () => {
-        list.classList.remove('open');
-        trigger.classList.remove('open');
-    });
-
-    ui.appendChild(trigger);
-    ui.appendChild(list);
-    container.appendChild(ui);
-}
-
-// ==========================================
-// BEAUTIFUL LOGIN DROPDOWN LOGIC
-// ==========================================
-function transformLoginDropdown() {
-    const select = document.getElementById('loginDbType');
-    const container = document.getElementById('loginDbContainer');
-    if (!select || !container) return;
-
-    // 1. Hide ugly native select
-    select.style.display = 'none';
-
-    // 2. Clear old custom UI if list refreshes
-    const existingUI = container.querySelector('.custom-dropdown-ui');
-    if (existingUI) existingUI.remove();
-
-    // 3. Build new UI using the EXACT same classes
-    const ui = document.createElement('div');
-    ui.className = 'custom-dropdown-ui';
-
-    const trigger = document.createElement('div');
-    trigger.className = 'custom-select-trigger';
-    // Just changing the icon to a database (🛢️) instead of a PC
-    trigger.innerHTML = `<span class="server-icon">🛢️</span> <span class="selected-text">${select.options[select.selectedIndex]?.text || 'MSSQL (SQL Server)'}</span> <span class="chevron-icon">▼</span>`;
-
-    const list = document.createElement('div');
-    list.className = 'custom-select-list';
-
-    Array.from(select.options).forEach(option => {
-        const item = document.createElement('div');
-        item.className = 'custom-select-item';
-
-        // Mute disabled/coming soon databases
-        if (option.disabled || option.text.includes('Coming Soon')) {
-            item.classList.add('disabled-item');
-        }
-        item.innerText = option.text;
-
-        item.onclick = (e) => {
-            e.stopPropagation();
-            if (item.classList.contains('disabled-item')) return; // Block clicks on disabled ones
-
-            // Sync with real hidden select
-            select.value = option.value;
-            trigger.querySelector('.selected-text').innerText = option.text;
-            list.classList.remove('open');
-            trigger.classList.remove('open');
-        };
-        list.appendChild(item);
-    });
-
-    // Toggle menu
-    trigger.onclick = (e) => {
-        e.stopPropagation();
-        const isOpen = list.classList.contains('open');
-        document.querySelectorAll('.custom-select-list').forEach(l => l.classList.remove('open'));
-        document.querySelectorAll('.custom-select-trigger').forEach(t => t.classList.remove('open'));
-        if (!isOpen) {
-            list.classList.add('open');
-            trigger.classList.add('open');
-        }
-    };
-
-    document.addEventListener('click', () => {
-        list.classList.remove('open');
-        trigger.classList.remove('open');
-    });
-
-    ui.appendChild(trigger);
-    ui.appendChild(list);
-    container.appendChild(ui);
-}
-
-// Run it safely after the page fully loads
-setTimeout(() => {
-    if (document.getElementById('loginDbType')) {
-        transformLoginDropdown();
-    }
-}, 150); // 150ms delay guarantees the HTML is drawn first!/*
 </script>
 {% endif %}
 </body>
