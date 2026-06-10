@@ -11,9 +11,14 @@ import pyodbc
 import os
 import datetime
 import time
+from dotenv import load_dotenv
+
+# Load environment variables from the .env file
+load_dotenv()
 
 app = Flask(__name__)
-app.secret_key = os.urandom(24)
+# Pull from .env, but fallback to urandom just in case it's missing
+app.secret_key = os.getenv("FLASK_SECRET_KEY", os.urandom(24))
 
 # ==========================================
 # ⚙️ ARCHITECTURE: SQLITE LOCAL DATABASE
@@ -67,9 +72,14 @@ class DatabasePurgeCache(db.Model):
 # ==========================================
 # 🔐 ADMIN CREDENTIALS & ENCRYPTION
 # ==========================================
-# ADMIN_USERNAME = "admin"
-# ADMIN_PASSWORD = "Admin123!"
-KEY_FILE = 'encryption.key'
+ADMIN_USERNAME = os.getenv("ADMIN_USERNAME")
+ADMIN_PASSWORD = os.getenv("ADMIN_PASSWORD")
+
+# Add the KEY_FILE definition back right here!
+KEY_FILE = "encryption.key" 
+
+if not ADMIN_USERNAME or not ADMIN_PASSWORD:
+    print("⚠️ WARNING: ADMIN_USERNAME or ADMIN_PASSWORD is not set in the .env file!")
 
 if not os.path.exists(KEY_FILE):
     with open(KEY_FILE, 'wb') as f:
