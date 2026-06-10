@@ -67,8 +67,8 @@ class DatabasePurgeCache(db.Model):
 # ==========================================
 # 🔐 ADMIN CREDENTIALS & ENCRYPTION
 # ==========================================
-ADMIN_USERNAME = "admin"
-ADMIN_PASSWORD = "Admin123!"
+# ADMIN_USERNAME = "admin"
+# ADMIN_PASSWORD = "Admin123!"
 KEY_FILE = 'encryption.key'
 
 if not os.path.exists(KEY_FILE):
